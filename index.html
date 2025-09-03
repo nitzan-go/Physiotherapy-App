@@ -3,29 +3,29 @@
 <head>
   <!--
     ============================================================
-    PHYSIO WORKOUT — Single-file app (v3.2 for GitHub Pages)
+    PHYSIO WORKOUT — Single-file app (GitHub Pages edition)
     ------------------------------------------------------------
-    What's in here:
-    • Uses logo.png everywhere (splash + headers + PWA icon)
-    • Simple workout runner with "Get Ready" (10s) then exercise
+    • Static web manifest + PNG icons (proper Android app icon)
+    • Workout runner with "Get Ready" (10s) then exercise
     • Progress bar (green), voice cues (optional), beeps, vibration
     • Editor: add/edit workouts, upload exercise images
     • Export/Import workouts (share -> download -> copy fallback)
     • History: calendar (done days) + day streak
     • Finish screen with confetti and share
-    • PWA manifest + service worker for install/offline (works on GH Pages)
-    ------------------------------------------------------------
-    HOW TO USE ON GITHUB PAGES
-    1) Put this file as index.html in your repo's root (or /docs).
-    2) Add your app icon image as logo.png in the same folder.
-    3) Enable GitHub Pages (Settings → Pages → Build from branch).
-    4) Open the site on Android Chrome → ⋮ menu → "Install app" / "Add to Home screen".
+    • Service worker for offline/install
     ============================================================
   -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Physio Workout</title>
 
+  <!-- ✅ Static manifest + icons (required for custom Android icon) -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="theme-color" content="#22c55e">
+
+  <!-- ========== Theme & base styles ========== -->
   <style>
     :root{
       --bg:#0f172a; --panel:#111827; --muted:#94a3b8; --text:#e5e7eb;
@@ -100,7 +100,8 @@
     <section data-screen="splash" style="min-height:100dvh;display:grid;place-items:center">
       <div style="text-align:center">
         <div class="brand" style="justify-content:center;margin-bottom:14px">
-          <div class="logo" style="width:72px;height:72px;border-radius:20px"><img id="splashLogo" src="logo.png" alt="logo"/></div>
+          <!-- Put your logo as logo.png next to index.html if you want this too; the app icon is controlled by manifest icons -->
+          <div class="logo" style="width:72px;height:72px;border-radius:20px"><img id="splashLogo" src="logo.png" alt="logo" onerror="this.style.display='none'"/></div>
         </div>
         <div class="title" style="font-size:34px">Physio Workout</div>
         <div class="subtitle" style="margin-top:6px">Tap to begin your session</div>
@@ -115,7 +116,7 @@
     <section data-screen="picker" style="min-height:100dvh;display:none;padding:22px">
       <header style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div class="brand">
-          <div class="logo"><img id="pickerLogo" src="logo.png" alt="logo"/></div>
+          <div class="logo"><img id="pickerLogo" src="logo.png" alt="logo" onerror="this.style.display='none'"/></div>
           <div>
             <div class="title">Choose Workout</div>
             <div class="subtitle">Configure options</div>
@@ -165,7 +166,7 @@
     <!-- ========== EDITOR ========== -->
     <section data-screen="editor" style="min-height:100dvh;display:none;padding:22px">
       <div class="brand" style="margin-bottom:12px">
-        <div class="logo"><img id="editorLogo" src="logo.png" alt="logo"/></div>
+        <div class="logo"><img id="editorLogo" src="logo.png" alt="logo" onerror="this.style.display='none'"/></div>
         <div>
           <div class="title">Workout Editor</div>
           <div class="subtitle">Create or modify workouts. Saved to this device.</div>
@@ -245,7 +246,7 @@
     <section data-screen="history" style="min-height:100dvh;display:none;padding:22px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div class="brand">
-          <div class="logo"><img id="historyLogo" src="logo.png" alt="logo"/></div>
+          <div class="logo"><img id="historyLogo" src="logo.png" alt="logo" onerror="this.style.display='none'"/></div>
           <div><div class="title">History</div><div class="subtitle">Calendar &amp; streak</div></div>
         </div>
         <div style="display:flex;gap:8px">
@@ -289,6 +290,7 @@
 
   <audio id="bgm" preload="none" loop></audio>
 
+  <!-- ========== APP LOGIC ========== -->
   <script>
     /* ===================== 0) Router ===================== */
     function show(screen){
@@ -422,7 +424,14 @@
       const total=sumTime(w);
       workoutMeta.innerHTML=`Total &nbsp;~&nbsp; <strong>${Math.round(total/60)} min</strong> &nbsp;&bull;&nbsp; Exercises: <strong>${w.exercises.length}</strong>`;
       preCountdownInput.value=w.preCountdown ?? 10; startBtn.disabled=false;
-      exerciseList.innerHTML=''; w.exercises.forEach((ex,i)=>{ const li=document.createElement('div'); li.className='exercise-item'; const img=document.createElement('img'); img.src=ex.img||svgPlaceholder(ex.name,(i*37)%360); const name=document.createElement('div'); name.innerHTML=`<div style="font-weight:700">${ex.name}</div><div class='muted'>${ex.duration}s</div>`; const order=document.createElement('div'); order.className='chip'; order.textContent=`#${i+1}`; order.style.marginLeft='auto'; li.append(img,name,order); exerciseList.appendChild(li); });
+      exerciseList.innerHTML='';
+      w.exercises.forEach((ex,i)=>{
+        const li=document.createElement('div'); li.className='exercise-item';
+        const img=document.createElement('img'); img.src=ex.img||svgPlaceholder(ex.name,(i*37)%360);
+        const name=document.createElement('div'); name.innerHTML=`<div style="font-weight:700">${ex.name}</div><div class='muted'>${ex.duration}s</div>`;
+        const order=document.createElement('div'); order.className='chip'; order.textContent=`#${i+1}`; order.style.marginLeft='auto';
+        li.append(img,name,order); exerciseList.appendChild(li);
+      });
       voiceToggle.checked=!!PREFS.voice;
     }
 
@@ -432,47 +441,93 @@
     function stopLoop(){ if(rafId){ cancelAnimationFrame(rafId); rafId=null; } }
     function runLoop(step){ stopLoop(); const tick=()=>{ if(step()===true) return; rafId=requestAnimationFrame(tick); }; rafId=requestAnimationFrame(tick); }
     function updateOverallProgress(){ const pct=Math.max(0,Math.min(100,Math.round((elapsedOverall/totalPlanned)*100))); progressBar.style.width=pct+'%'; progressChip.textContent=pct+'%'; }
-    function loadCurrent(){ const ex=currentWorkout.exercises[idx]; currentName.textContent=ex.name; currentImg.src=ex.img||svgPlaceholder(ex.name,(idx*37)%360); const next=currentWorkout.exercises[idx+1]; if(next){ nextName.textContent=next.name; nextImg.src=next.img||svgPlaceholder(next.name,((idx+1)*37)%360);} else { nextName.textContent='&mdash;'; nextImg.src=svgPlaceholder('Done',140);} }
+    function loadCurrent(){
+      const ex=currentWorkout.exercises[idx]; currentName.textContent=ex.name; currentImg.src=ex.img||svgPlaceholder(ex.name,(idx*37)%360);
+      const next=currentWorkout.exercises[idx+1];
+      if(next){ nextName.textContent=next.name; nextImg.src=next.img||svgPlaceholder(next.name,((idx+1)*37)%360);} else { nextName.textContent='—'; nextImg.src=svgPlaceholder('Done',140); }
+    }
 
     function startReady(count){
       phase='ready'; phaseLabel.textContent='Get Ready'; const total=count; endAt=Date.now()+total*1000; setControls({pause:true,resume:true,next:true}); speak('Get ready');
       let added=0;
-      runLoop(()=>{ const remain=(endAt-Date.now())/1000; const progressed=Math.min(total,Math.max(0,total-remain)); const inc=progressed-added; if(inc>0){ elapsedOverall+=inc; added+=inc; updateOverallProgress(); } const p=1-Math.max(0,Math.min(1,remain/total)); setRingProgress(p); timeBig.textContent=fmt(remain); const r=Math.ceil(remain); if(r<=3&&r>0){ if(startReady._b!==r){ beep({duration:90,frequency:900}); startReady._b=r; } } if(remain<=0){ startReady._b=undefined; beep({duration:160,frequency:1200,type:'triangle'}); vibrate([160]); startExercise(); return true; } });
+      runLoop(()=>{
+        const remain=(endAt-Date.now())/1000;
+        const progressed=Math.min(total,Math.max(0,total-remain));
+        const inc=progressed-added; if(inc>0){ elapsedOverall+=inc; added+=inc; updateOverallProgress(); }
+        const p=1-Math.max(0,Math.min(1,remain/total)); setRingProgress(p); timeBig.textContent=fmt(remain);
+        const r=Math.ceil(remain); if(r<=3&&r>0){ if(startReady._b!==r){ beep({duration:90,frequency:900}); startReady._b=r; } }
+        if(remain<=0){ startReady._b=undefined; beep({duration:160,frequency:1200,type:'triangle'}); vibrate([160]); startExercise(); return true; }
+      });
     }
     function startExercise(){
       phase='active'; const ex=currentWorkout.exercises[idx]; const total=ex.duration; endAt=Date.now()+total*1000; phaseLabel.textContent='In Progress'; speak(`Now: ${ex.name} for ${Math.round(total)} seconds`);
       let added=0;
-      runLoop(()=>{ const remain=(endAt-Date.now())/1000; const progressed=Math.min(total,Math.max(0,total-remain)); const inc=progressed-added; if(inc>0){ elapsedOverall+=inc; added+=inc; updateOverallProgress(); } const p=1-Math.max(0,Math.min(1,remain/total)); setRingProgress(p); timeBig.textContent=fmt(remain); if(Math.ceil(remain)===5 && startExercise._w!==idx){ speak('5 seconds'); startExercise._w=idx; } if(remain<=0){ beep({duration:120,frequency:900}); setTimeout(()=>beep({duration:140,frequency:700}),140); vibrate([160,60,120]); timeBig.textContent='00:00'; setRingProgress(1); nextExercise(); return true; } });
+      runLoop(()=>{
+        const remain=(endAt-Date.now())/1000;
+        const progressed=Math.min(total,Math.max(0,total-remain));
+        const inc=progressed-added; if(inc>0){ elapsedOverall+=inc; added+=inc; updateOverallProgress(); }
+        const p=1-Math.max(0,Math.min(1,remain/total)); setRingProgress(p); timeBig.textContent=fmt(remain);
+        if(Math.ceil(remain)===5 && startExercise._w!==idx){ speak('5 seconds'); startExercise._w=idx; }
+        if(remain<=0){ beep({duration:120,frequency:900}); setTimeout(()=>beep({duration:140,frequency:700}),140); vibrate([160,60,120]); timeBig.textContent='00:00'; setRingProgress(1); nextExercise(); return true; }
+      });
     }
     function nextExercise(){ stopLoop(); if(idx<currentWorkout.exercises.length-1){ idx++; loadCurrent(); startReady(currentWorkout.preCountdown||10); } else { finishWorkout(); } }
     function setControls({pause=false,resume=false,next=false}){ pauseBtn.disabled=!pause; resumeBtn.disabled=!resume; nextBtn.disabled=!next; }
     function pause(){ if(phase!=='ready'&&phase!=='active') return; paused=true; stopLoop(); pauseRemain=Math.max(0,(endAt-Date.now())/1000); setControls({pause:false,resume:true,next:true}); phaseLabel.textContent='Paused'; }
-    function resume(){ if(!paused) return; paused=false; endAt=Date.now()+pauseRemain*1000; const total=(phase==='ready'?(currentWorkout.preCountdown||10):currentWorkout.exercises[idx].duration); let progressedAtResume=0; runLoop(()=>{ const remain=(endAt-Date.now())/1000; const progressed=Math.min(total,Math.max(0,total-remain)); const inc=progressed-progressedAtResume; if(inc>0){ elapsedOverall+=inc; progressedAtResume+=inc; updateOverallProgress(); } const p=1-Math.max(0,Math.min(1,remain/total)); setRingProgress(p); timeBig.textContent=fmt(remain); if(remain<=0){ if(phase==='ready'){ beep({duration:160,frequency:1200,type:'triangle'}); vibrate([160]); startExercise(); } else { beep({duration:120,frequency:900}); setTimeout(()=>beep({duration:140,frequency:700}),140); vibrate([160,60,120]); nextExercise(); } return true; } }); phaseLabel.textContent=(phase==='ready')?'Get Ready':'In Progress'; setControls({pause:true,resume:false,next:true}); }
+    function resume(){ if(!paused) return; paused=false; endAt=Date.now()+pauseRemain*1000; const total=(phase==='ready'?(currentWorkout.preCountdown||10):currentWorkout.exercises[idx].duration); let progressedAtResume=0;
+      runLoop(()=>{
+        const remain=(endAt-Date.now())/1000;
+        const progressed=Math.min(total,Math.max(0,total-remain)); const inc=progressed-progressedAtResume;
+        if(inc>0){ elapsedOverall+=inc; progressedAtResume+=inc; updateOverallProgress(); }
+        const p=1-Math.max(0,Math.min(1,remain/total)); setRingProgress(p); timeBig.textContent=fmt(remain);
+        if(remain<=0){
+          if(phase==='ready'){ beep({duration:160,frequency:1200,type:'triangle'}); vibrate([160]); startExercise(); }
+          else { beep({duration:120,frequency:900}); setTimeout(()=>beep({duration:140,frequency:700}),140); vibrate([160,60,120]); nextExercise(); }
+          return true;
+        }
+      });
+      phaseLabel.textContent=(phase==='ready')?'Get Ready':'In Progress'; setControls({pause:true,resume:false,next:true});
+    }
     function resetSession(){ stopLoop(); idx=0; phase='idle'; elapsedOverall=0; setRingProgress(0); timeBig.textContent='00:00'; progressBar.style.width='0%'; progressChip.textContent='0%'; show('picker'); }
 
     /* ===================== 8) Confetti (Finish Animation) ===================== */
-    let confettiRAF=null; function runConfetti(ms=2500){ const c=confettiCanvas, ctx=c.getContext('2d'); const {innerWidth:w, innerHeight:h}=window; c.width=w; c.height=h; const N=150; const parts=[...Array(N)].map(()=>({x:Math.random()*w,y:-20-Math.random()*h,vx:(Math.random()-0.5)*2,vy:2+Math.random()*4,size:4+Math.random()*4,rot:Math.random()*Math.PI,vr:(Math.random()-0.5)*0.2,color:`hsl(${(Math.random()*360)|0},90%,60%)`})); const t0=performance.now(); function step(t){ const dt=(t-(step.t||t))/16; step.t=t; ctx.clearRect(0,0,w,h); parts.forEach(p=>{ p.x+=p.vx*dt; p.y+=p.vy*dt; p.rot+=p.vr*dt; ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot); ctx.fillStyle=p.color; ctx.fillRect(-p.size/2,-p.size/2,p.size,p.size); ctx.restore(); if(p.y>h+30) { p.y=-20; p.x=Math.random()*w; } }); if(t-t0<ms){ confettiRAF=requestAnimationFrame(step); } else { ctx.clearRect(0,0,w,h); } } confettiRAF=requestAnimationFrame(step); }
+    let confettiRAF=null; function runConfetti(ms=2500){
+      const c=confettiCanvas, ctx=c.getContext('2d'); const {innerWidth:w, innerHeight:h}=window; c.width=w; c.height=h;
+      const N=150; const parts=[...Array(N)].map(()=>({x:Math.random()*w,y:-20-Math.random()*h,vx:(Math.random()-0.5)*2,vy:2+Math.random()*4,size:4+Math.random()*4,rot:Math.random()*Math.PI,vr:(Math.random()-0.5)*0.2,color:`hsl(${(Math.random()*360)|0},90%,60%)`}));
+      const t0=performance.now(); function step(t){ const dt=(t-(step.t||t))/16; step.t=t; ctx.clearRect(0,0,w,h);
+        parts.forEach(p=>{ p.x+=p.vx*dt; p.y+=p.vy*dt; p.rot+=p.vr*dt; ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot); ctx.fillStyle=p.color; ctx.fillRect(-p.size/2,-p.size/2,p.size,p.size); ctx.restore(); if(p.y>h+30) { p.y=-20; p.x=Math.random()*w; } });
+        if(t-t0<ms){ confettiRAF=requestAnimationFrame(step); } else { ctx.clearRect(0,0,w,h); } }
+      confettiRAF=requestAnimationFrame(step);
+    }
     function stopConfetti(){ if(confettiRAF) cancelAnimationFrame(confettiRAF); const ctx=confettiCanvas.getContext('2d'); ctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height); }
 
     /* ===================== 9) Tracking (Log + Streak + History) ===================== */
     function addLogEntry(workout, seconds){ const log=loadLog(); log.push({date:todayISO(), workoutId:workout.id, name:workout.name, seconds}); saveLog(log); }
     function getDatesSet(){ const log=loadLog(); const set=new Set(); log.forEach(r=>set.add(r.date)); return set; }
     function calcStreak(){ const dates=getDatesSet(); let streak=0; const d=new Date(); for(;;){ const iso=d.toISOString().slice(0,10); if(dates.has(iso)){ streak++; d.setDate(d.getDate()-1); } else break; } return streak; }
-    function renderLogList(){ const log=loadLog().slice().reverse(); logList.innerHTML=''; if(!log.length){ logList.innerHTML='<div class="muted">No sessions yet.</div>'; return; } log.slice(0,40).forEach(item=>{ const div=document.createElement('div'); div.className='exercise-item'; div.innerHTML=`<div style="font-weight:700">${item.name}</div><div class="muted" style="margin-left:auto">${item.date} &bull; ${Math.round(item.seconds/60)} min</div>`; logList.appendChild(div); }); }
+    function renderLogList(){ const log=loadLog().slice().reverse(); logList.innerHTML=''; if(!log.length){ logList.innerHTML='<div class="muted">No sessions yet.</div>'; return; }
+      log.slice(0,40).forEach(item=>{ const div=document.createElement('div'); div.className='exercise-item'; div.innerHTML=`<div style="font-weight:700">${item.name}</div><div class="muted" style="margin-left:auto">${item.date} &bull; ${Math.round(item.seconds/60)} min</div>`; logList.appendChild(div); });
+    }
     let calYear=(new Date()).getFullYear(), calMonth=(new Date()).getMonth();
-    function renderCalendar(){ const date=new Date(calYear,calMonth,1); const firstDOW=(date.getDay()+6)%7;
+    function renderCalendar(){
+      const date=new Date(calYear,calMonth,1); const firstDOW=(date.getDay()+6)%7;
       const nextMonth=new Date(calYear,calMonth+1,0).getDate(); const datesSet=getDatesSet(); calGrid.innerHTML='';
       const dow=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']; dow.forEach(d=>{ const s=document.createElement('div'); s.className='dow'; s.textContent=d; calGrid.appendChild(s); });
       for(let i=0;i<firstDOW;i++){ const b=document.createElement('div'); b.className='day'; b.style.visibility='hidden'; calGrid.appendChild(b); }
       const today=todayISO();
-      for(let d=1; d<=nextMonth; d++){ const cell=document.createElement('div'); cell.className='day'; const iso=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; if(iso===today) cell.classList.add('today'); if(datesSet.has(iso)) cell.classList.add('done'); cell.innerHTML=`<div>${d}</div><div class="dot"></div>`; calGrid.appendChild(cell); }
+      for(let d=1; d<=nextMonth; d++){
+        const cell=document.createElement('div'); cell.className='day';
+        const iso=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        if(iso===today) cell.classList.add('today'); if(datesSet.has(iso)) cell.classList.add('done');
+        cell.innerHTML=`<div>${d}</div><div class="dot"></div>`; calGrid.appendChild(cell);
+      }
       const monthName=date.toLocaleString(undefined,{month:'long',year:'numeric'}); monthLabel.textContent=monthName;
       streakLabel.textContent=`Streak: ${calcStreak()} day(s)`;
     }
 
     /* ===================== 10) Finish & Share ===================== */
     function finishWorkout(){
-      phase='finished'; timeBig.textContent='&#127937;'; setRingProgress(1); setControls({pause:false,resume:false,next:false});
+      phase='finished'; timeBig.textContent='🏁'; setRingProgress(1); setControls({pause:false,resume:false,next:false});
       const totalSeconds = sumTime(currentWorkout);
       addLogEntry(currentWorkout,totalSeconds);
       finishSubtitle.textContent = `Completed: ${currentWorkout.name}`;
@@ -592,7 +647,15 @@
     newBtn.addEventListener('click',()=> openEditor(-1));
     exportBtn.addEventListener('click', doExport);
     importBtn.addEventListener('click',()=>importFile.click());
-    importFile.addEventListener('change', async (e)=>{ const file=e.target.files?.[0]; if(!file) return; const text=await file.text(); try{ const data=JSON.parse(text); if(Array.isArray(data)){ WORKOUTS=data; saveStore(WORKOUTS); populateSelect(); workoutSelect.value=WORKOUTS[0]?.id||''; renderWorkoutMeta(); alert('Imported ✓'); } else { alert('Invalid file format'); } }catch(err){ alert('Failed to parse JSON'); } });
+    importFile.addEventListener('change', async (e)=>{
+      const file=e.target.files?.[0]; if(!file) return; const text=await file.text();
+      try{
+        const data=JSON.parse(text);
+        if(Array.isArray(data)){
+          WORKOUTS=data; saveStore(WORKOUTS); populateSelect(); workoutSelect.value=WORKOUTS[0]?.id||''; renderWorkoutMeta(); alert('Imported ✓');
+        } else { alert('Invalid file format'); }
+      }catch(err){ alert('Failed to parse JSON'); }
+    });
     historyBtn.addEventListener('click',()=>{ renderCalendar(); renderLogList(); show('history'); });
 
     // Player
@@ -643,28 +706,7 @@
     init();
   </script>
 
-  <!-- ===== Dynamic Manifest for PWA (uses logo.png) ===== -->
-  <script>
-  (function registerManifest(){
-    const appName="Physio Workout";
-    const theme="#22c55e";
-    const bg="#0f172a";
-    // Make URLs work both on file:// and GitHub Pages paths
-    const scopeUrl = new URL('./', location.href).toString();
-    const startUrl = new URL(location.pathname.split('/').pop() || 'index.html', location.href).toString();
-    const manifest = {
-      name: appName, short_name:"Physio",
-      start_url: startUrl, scope: scopeUrl,
-      display: "standalone", background_color: bg, theme_color: theme,
-      icons: [{ src:"logo.png", sizes:"512x512", type:"image/png", purpose:"any maskable" }]
-    };
-    const blob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
-    const url=URL.createObjectURL(blob);
-    const link=document.createElement('link'); link.rel='manifest'; link.href=url; document.head.appendChild(link);
-  })();
-  </script>
-
-  <!-- ===== Service worker for offline ===== -->
+  <!-- ===== Service worker for offline/install (kept simple) ===== -->
   <script>
   (function registerSW(){
     const swCode = `
