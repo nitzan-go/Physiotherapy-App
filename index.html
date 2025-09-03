@@ -3,23 +3,29 @@
 <head>
   <!--
     ============================================================
-    PHYSIO WORKOUT — Single-file app (v3)
+    PHYSIO WORKOUT â€” Single-file app (v3.2 for GitHub Pages)
     ------------------------------------------------------------
-    FEATURES
-    1) Robust EXPORT: Web Share API -> download -> copy fallback
-    2) Workout TRACKING:
-       - Logs completion by date (localStorage)
-       - History screen with calendar + streak
-    3) FINISH SCREEN:
-       - Confetti animation + stats + share button
-    4) PWA bootstrap at the end (installable, offline)
+    What's in here:
+    â€¢ Uses logo.png everywhere (splash + headers + PWA icon)
+    â€¢ Simple workout runner with "Get Ready" (10s) then exercise
+    â€¢ Progress bar (green), voice cues (optional), beeps, vibration
+    â€¢ Editor: add/edit workouts, upload exercise images
+    â€¢ Export/Import workouts (share -> download -> copy fallback)
+    â€¢ History: calendar (done days) + day streak
+    â€¢ Finish screen with confetti and share
+    â€¢ PWA manifest + service worker for install/offline (works on GH Pages)
+    ------------------------------------------------------------
+    HOW TO USE ON GITHUB PAGES
+    1) Put this file as index.html in your repo's root (or /docs).
+    2) Add your app icon image as logo.png in the same folder.
+    3) Enable GitHub Pages (Settings â†’ Pages â†’ Build from branch).
+    4) Open the site on Android Chrome â†’ â‹® menu â†’ "Install app" / "Add to Home screen".
     ============================================================
   -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Physio Workout</title>
 
-  <!-- ========== Theme & base styles ========== -->
   <style>
     :root{
       --bg:#0f172a; --panel:#111827; --muted:#94a3b8; --text:#e5e7eb;
@@ -33,8 +39,8 @@
       font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif
     }
     .brand{display:flex;gap:12px;align-items:center}
-    .brand .logo{width:42px;height:42px;border-radius:12px;background:conic-gradient(from 0deg, var(--accent), var(--accent-2));display:grid;place-items:center;box-shadow:0 8px 30px rgba(34,197,94,.35)}
-    .brand .logo span{font-weight:800;color:#0a0f22}
+    .brand .logo{width:42px;height:42px;border-radius:12px;background:conic-gradient(from 0deg, var(--accent), var(--accent-2));display:grid;place-items:center;box-shadow:0 8px 30px rgba(34,197,94,.35);overflow:hidden}
+    .brand .logo img{width:100%;height:100%;object-fit:cover;border-radius:12px}
     .title{font-weight:800;font-size:24px;letter-spacing:.2px}
     .subtitle{font-weight:600;color:var(--muted)}
     .card{background:rgba(17,24,39,.65);backdrop-filter: blur(8px);border:1px solid rgba(255,255,255,.06);border-radius:18px;padding:18px}
@@ -94,13 +100,13 @@
     <section data-screen="splash" style="min-height:100dvh;display:grid;place-items:center">
       <div style="text-align:center">
         <div class="brand" style="justify-content:center;margin-bottom:14px">
-          <div class="logo" style="width:72px;height:72px;border-radius:20px"><span style="font-size:32px"></span></div>
+          <div class="logo" style="width:72px;height:72px;border-radius:20px"><img id="splashLogo" src="logo.png" alt="logo"/></div>
         </div>
         <div class="title" style="font-size:34px">Physio Workout</div>
         <div class="subtitle" style="margin-top:6px">Tap to begin your session</div>
         <div style="margin-top:22px;display:flex;gap:10px;justify-content:center">
-          <button id="enterBtn" class="primary">Continue</button>
-          <button id="aboutBtn" class="outline">About</button>
+          <button id="enterBtn" class="primary" type="button">Continue</button>
+          <button id="aboutBtn" class="outline" type="button">About</button>
         </div>
       </div>
     </section>
@@ -109,14 +115,14 @@
     <section data-screen="picker" style="min-height:100dvh;display:none;padding:22px">
       <header style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div class="brand">
-          <div class="logo"><span></span></div>
+          <div class="logo"><img id="pickerLogo" src="logo.png" alt="logo"/></div>
           <div>
             <div class="title">Choose Workout</div>
             <div class="subtitle">Configure options</div>
           </div>
         </div>
-        <div class="toggles" style="display:flex;gap:12px;align-items:center">
-          <button id="historyBtn" class="outline">History</button>
+        <div class="toggles" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <button id="historyBtn" class="outline" type="button">History</button>
           <label class="pill"><input id="muteToggle" type="checkbox" /> Mute beeps</label>
           <label class="pill"><input id="vibrateToggle" type="checkbox" checked /> Vibrate</label>
           <label class="pill"><input id="wakelockToggle" type="checkbox" checked /> Screen awake</label>
@@ -130,12 +136,12 @@
           <div id="workoutMeta" class="subtitle" style="margin-top:8px;color:var(--muted)"></div>
           <div class="divider"></div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button id="startBtn" class="primary" disabled>Start</button>
-            <button id="editBtn" class="outline">Edit Selected</button>
-            <button id="newBtn" class="ghost">New Workout</button>
-            <button id="exportBtn" class="ghost">Export</button>
+            <button id="startBtn" class="primary" type="button" disabled>Start</button>
+            <button id="editBtn" class="outline" type="button">Edit Selected</button>
+            <button id="newBtn" class="ghost" type="button">New Workout</button>
+            <button id="exportBtn" class="ghost" type="button">Export</button>
             <input id="importFile" type="file" accept="application/json" style="display:none"/>
-            <button id="importBtn" class="ghost">Import</button>
+            <button id="importBtn" class="ghost" type="button">Import</button>
           </div>
         </div>
 
@@ -159,7 +165,7 @@
     <!-- ========== EDITOR ========== -->
     <section data-screen="editor" style="min-height:100dvh;display:none;padding:22px">
       <div class="brand" style="margin-bottom:12px">
-        <div class="logo"><span></span></div>
+        <div class="logo"><img id="editorLogo" src="logo.png" alt="logo"/></div>
         <div>
           <div class="title">Workout Editor</div>
           <div class="subtitle">Create or modify workouts. Saved to this device.</div>
@@ -169,7 +175,7 @@
         <div class="row">
           <div class="col">
             <label class="subtitle">Title</label>
-            <input id="edTitle" placeholder="e.g., Neck & Shoulder Release" style="width:100%;margin-top:6px;border-radius:10px;border:1px solid rgba(255,255,255,.12);padding:10px;background:#0b1227;color:var(--text)"/>
+            <input id="edTitle" placeholder="e.g., Neck &amp; Shoulder Release" style="width:100%;margin-top:6px;border-radius:10px;border:1px solid rgba(255,255,255,.12);padding:10px;background:#0b1227;color:var(--text)"/>
           </div>
           <div class="col">
             <label class="subtitle">ID</label>
@@ -187,9 +193,9 @@
         <div class="subtitle">Exercises</div>
         <div id="edList" class="list" style="margin-top:8px"></div>
         <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-          <button id="addExBtn" class="outline">+ Add Exercise</button>
-          <button id="saveEdBtn" class="primary">Save Workout</button>
-          <button id="cancelEdBtn" class="ghost">Cancel</button>
+          <button id="addExBtn" class="outline" type="button">+ Add Exercise</button>
+          <button id="saveEdBtn" class="primary" type="button">Save Workout</button>
+          <button id="cancelEdBtn" class="ghost" type="button">Cancel</button>
         </div>
       </div>
     </section>
@@ -198,7 +204,7 @@
     <section data-screen="player" style="min-height:100dvh;display:none;padding:0">
       <div style="display:grid;grid-template-rows:auto auto 1fr auto;min-height:100dvh">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px">
-          <button id="backToPicker" class="ghost"> Exit</button>
+          <button id="backToPicker" class="ghost" type="button">&larr; Exit</button>
           <div class="title" id="currentWorkoutTitle" style="font-size:18px"></div>
           <div class="chip" id="progressChip">0%</div>
         </div>
@@ -217,10 +223,10 @@
               </div></div>
             </div>
             <div class="controls" style="margin-top:2px">
-              <button id="pauseBtn" class="outline" disabled>Pause</button>
-              <button id="resumeBtn" class="outline" disabled>Resume</button>
-              <button id="nextBtn" class="primary" disabled>Next </button>
-              <button id="resetBtn" class="ghost">Reset</button>
+              <button id="pauseBtn" class="outline" type="button" disabled>Pause</button>
+              <button id="resumeBtn" class="outline" type="button" disabled>Resume</button>
+              <button id="nextBtn" class="primary" type="button" disabled>Next &#9654;</button>
+              <button id="resetBtn" class="ghost" type="button">Reset</button>
             </div>
             <div class="upnext" style="margin-top:10px">
               <img id="nextImg" alt="next"/>
@@ -239,23 +245,21 @@
     <section data-screen="history" style="min-height:100dvh;display:none;padding:22px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div class="brand">
-          <div class="logo"><span></span></div>
-          <div><div class="title">History</div><div class="subtitle">Calendar & streak</div></div>
+          <div class="logo"><img id="historyLogo" src="logo.png" alt="logo"/></div>
+          <div><div class="title">History</div><div class="subtitle">Calendar &amp; streak</div></div>
         </div>
         <div style="display:flex;gap:8px">
-          <button id="prevMonthBtn" class="outline"></button>
+          <button id="prevMonthBtn" class="outline" type="button">&#9664;</button>
           <div id="monthLabel" class="pill">Month</div>
-          <button id="nextMonthBtn" class="outline"></button>
-          <button id="backFromHistory" class="ghost">Back</button>
+          <button id="nextMonthBtn" class="outline" type="button">&#9654;</button>
+          <button id="backFromHistory" class="ghost" type="button">Back</button>
         </div>
       </div>
 
       <div class="card">
         <div class="subtitle" id="streakLabel">Streak: 0 days</div>
         <div class="divider"></div>
-        <div class="cal" id="calGrid">
-          <!-- DOW -->
-        </div>
+        <div class="cal" id="calGrid"></div>
       </div>
 
       <div class="card" style="margin-top:14px">
@@ -267,17 +271,17 @@
     <!-- ========== FINISH SCREEN ========== -->
     <section data-screen="finish" style="min-height:100dvh;display:none;padding:22px">
       <div class="card" style="text-align:center">
-        <div class="finish-hero"> You’re done!</div>
+        <div class="finish-hero">&#127881; You&rsquo;re done!</div>
         <div class="subtitle" id="finishSubtitle">Great job completing your workout.</div>
         <div class="finish-stats" style="margin:10px 0 6px">
-          <div class="badge" id="finishTime">Time: —</div>
-          <div class="badge" id="finishToday">Today: —</div>
-          <div class="badge" id="finishStreak">Streak: —</div>
+          <div class="badge" id="finishTime">Time: &mdash;</div>
+          <div class="badge" id="finishToday">Today: &mdash;</div>
+          <div class="badge" id="finishStreak">Streak: &mdash;</div>
         </div>
         <div style="display:flex;gap:10px;justify-content:center;margin-top:10px;flex-wrap:wrap">
-          <button id="finishBackBtn" class="primary">Back to Workouts</button>
-          <button id="finishHistoryBtn" class="outline">Open History</button>
-          <button id="finishShareBtn" class="ghost">Share Result</button>
+          <button id="finishBackBtn" class="primary" type="button">Back to Workouts</button>
+          <button id="finishHistoryBtn" class="outline" type="button">Open History</button>
+          <button id="finishShareBtn" class="ghost" type="button">Share Result</button>
         </div>
       </div>
     </section>
@@ -285,7 +289,6 @@
 
   <audio id="bgm" preload="none" loop></audio>
 
-  <!-- ========== APP LOGIC ========== -->
   <script>
     /* ===================== 0) Router ===================== */
     function show(screen){
@@ -295,9 +298,9 @@
     }
 
     /* ===================== 1) Storage ===================== */
-    const LS_KEY='physio.workouts.v3';       // bumped for new features
+    const LS_KEY='physio.workouts.v3';
     const PREFS_KEY='physio.prefs.v1';
-    const LOG_KEY='physio.log.v1';           // array of {date:'YYYY-MM-DD', workoutId, name, seconds}
+    const LOG_KEY='physio.log.v1';
 
     function loadStore(){ try{ return JSON.parse(localStorage.getItem(LS_KEY))||null; }catch(e){ return null; } }
     function saveStore(d){ localStorage.setItem(LS_KEY, JSON.stringify(d)); }
@@ -329,20 +332,20 @@
     function sumTime(w){ const ex = w.exercises.reduce((a,e)=>a+e.duration,0); const gets = w.exercises.length * (w.preCountdown||10); return ex+gets; }
 
     /* ===================== 3) Defaults ===================== */
-    const DEFAULTS=[{id:'neck-shoulder',name:'Neck & Shoulder Release (8 min)',preCountdown:10,exercises:[
+    const DEFAULTS=[{id:'neck-shoulder',name:'Neck &amp; Shoulder Release (8 min)',preCountdown:10,exercises:[
       {name:'Deep Neck Flexors (Chin Tucks)',duration:40,img:svgPlaceholder('Chin Tucks',150)},
       {name:'Upper Trap Stretch',duration:40,img:svgPlaceholder('Upper Trap',180)},
       {name:'Levator Scapulae Stretch',duration:40,img:svgPlaceholder('Levator',200)},
       {name:'Shoulder Rolls',duration:60,img:svgPlaceholder('Shoulder Rolls',210)},
       {name:'Scapular Retractions',duration:60,img:svgPlaceholder('Retractions',230)},
       {name:'Pec Doorway Stretch',duration:60,img:svgPlaceholder('Pec Stretch',20)},
-    ]},{id:'lumbar-core',name:'Lumbar Stability & Core (10 min)',preCountdown:10,exercises:[
+    ]},{id:'lumbar-core',name:'Lumbar Stability &amp; Core (10 min)',preCountdown:10,exercises:[
       {name:'Pelvic Tilts',duration:60,img:svgPlaceholder('Pelvic Tilts',20)},
       {name:'Dead Bug (Alt.)',duration:45,img:svgPlaceholder('Dead Bug',40)},
       {name:'Bridge Hold',duration:60,img:svgPlaceholder('Bridge',60)},
       {name:'Clamshells (L)',duration:45,img:svgPlaceholder('Clamshell L',80)},
       {name:'Clamshells (R)',duration:45,img:svgPlaceholder('Clamshell R',100)},
-      {name:'Cat–Cow',duration:60,img:svgPlaceholder('Cat–Cow',120)},
+      {name:'Cat&ndash;Cow',duration:60,img:svgPlaceholder('Catâ€“Cow',120)},
     ]}];
     let WORKOUTS = loadStore() || DEFAULTS.slice();
     const PREFS = loadPrefs();
@@ -417,7 +420,7 @@
     function renderWorkoutMeta(){
       const w=WORKOUTS.find(x=>x.id===workoutSelect.value); if(!w){ workoutMeta.textContent=''; startBtn.disabled=true; return; }
       const total=sumTime(w);
-      workoutMeta.innerHTML=`Total ~ <strong>${Math.round(total/60)} min</strong> • Exercises: <strong>${w.exercises.length}</strong>`;
+      workoutMeta.innerHTML=`Total &nbsp;~&nbsp; <strong>${Math.round(total/60)} min</strong> &nbsp;&bull;&nbsp; Exercises: <strong>${w.exercises.length}</strong>`;
       preCountdownInput.value=w.preCountdown ?? 10; startBtn.disabled=false;
       exerciseList.innerHTML=''; w.exercises.forEach((ex,i)=>{ const li=document.createElement('div'); li.className='exercise-item'; const img=document.createElement('img'); img.src=ex.img||svgPlaceholder(ex.name,(i*37)%360); const name=document.createElement('div'); name.innerHTML=`<div style="font-weight:700">${ex.name}</div><div class='muted'>${ex.duration}s</div>`; const order=document.createElement('div'); order.className='chip'; order.textContent=`#${i+1}`; order.style.marginLeft='auto'; li.append(img,name,order); exerciseList.appendChild(li); });
       voiceToggle.checked=!!PREFS.voice;
@@ -429,7 +432,7 @@
     function stopLoop(){ if(rafId){ cancelAnimationFrame(rafId); rafId=null; } }
     function runLoop(step){ stopLoop(); const tick=()=>{ if(step()===true) return; rafId=requestAnimationFrame(tick); }; rafId=requestAnimationFrame(tick); }
     function updateOverallProgress(){ const pct=Math.max(0,Math.min(100,Math.round((elapsedOverall/totalPlanned)*100))); progressBar.style.width=pct+'%'; progressChip.textContent=pct+'%'; }
-    function loadCurrent(){ const ex=currentWorkout.exercises[idx]; currentName.textContent=ex.name; currentImg.src=ex.img||svgPlaceholder(ex.name,(idx*37)%360); const next=currentWorkout.exercises[idx+1]; if(next){ nextName.textContent=next.name; nextImg.src=next.img||svgPlaceholder(next.name,((idx+1)*37)%360);} else { nextName.textContent='—'; nextImg.src=svgPlaceholder('Done',140);} }
+    function loadCurrent(){ const ex=currentWorkout.exercises[idx]; currentName.textContent=ex.name; currentImg.src=ex.img||svgPlaceholder(ex.name,(idx*37)%360); const next=currentWorkout.exercises[idx+1]; if(next){ nextName.textContent=next.name; nextImg.src=next.img||svgPlaceholder(next.name,((idx+1)*37)%360);} else { nextName.textContent='&mdash;'; nextImg.src=svgPlaceholder('Done',140);} }
 
     function startReady(count){
       phase='ready'; phaseLabel.textContent='Get Ready'; const total=count; endAt=Date.now()+total*1000; setControls({pause:true,resume:true,next:true}); speak('Get ready');
@@ -455,16 +458,12 @@
     function addLogEntry(workout, seconds){ const log=loadLog(); log.push({date:todayISO(), workoutId:workout.id, name:workout.name, seconds}); saveLog(log); }
     function getDatesSet(){ const log=loadLog(); const set=new Set(); log.forEach(r=>set.add(r.date)); return set; }
     function calcStreak(){ const dates=getDatesSet(); let streak=0; const d=new Date(); for(;;){ const iso=d.toISOString().slice(0,10); if(dates.has(iso)){ streak++; d.setDate(d.getDate()-1); } else break; } return streak; }
-    function renderLogList(){ const log=loadLog().slice().reverse(); logList.innerHTML=''; if(!log.length){ logList.innerHTML='<div class="muted">No sessions yet.</div>'; return; } log.slice(0,40).forEach(item=>{ const div=document.createElement('div'); div.className='exercise-item'; div.innerHTML=`<div style="font-weight:700">${item.name}</div><div class="muted" style="margin-left:auto">${item.date} • ${Math.round(item.seconds/60)} min</div>`; logList.appendChild(div); }); }
-    // Calendar state
-    let calYear=(new Date()).getFullYear(), calMonth=(new Date()).getMonth(); // 0-based month
-    function renderCalendar(){ const date=new Date(calYear,calMonth,1); const firstDOW=(date.getDay()+6)%7; // make Monday=0
+    function renderLogList(){ const log=loadLog().slice().reverse(); logList.innerHTML=''; if(!log.length){ logList.innerHTML='<div class="muted">No sessions yet.</div>'; return; } log.slice(0,40).forEach(item=>{ const div=document.createElement('div'); div.className='exercise-item'; div.innerHTML=`<div style="font-weight:700">${item.name}</div><div class="muted" style="margin-left:auto">${item.date} &bull; ${Math.round(item.seconds/60)} min</div>`; logList.appendChild(div); }); }
+    let calYear=(new Date()).getFullYear(), calMonth=(new Date()).getMonth();
+    function renderCalendar(){ const date=new Date(calYear,calMonth,1); const firstDOW=(date.getDay()+6)%7;
       const nextMonth=new Date(calYear,calMonth+1,0).getDate(); const datesSet=getDatesSet(); calGrid.innerHTML='';
-      // Header DOW
       const dow=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']; dow.forEach(d=>{ const s=document.createElement('div'); s.className='dow'; s.textContent=d; calGrid.appendChild(s); });
-      // Blank cells before 1st
       for(let i=0;i<firstDOW;i++){ const b=document.createElement('div'); b.className='day'; b.style.visibility='hidden'; calGrid.appendChild(b); }
-      // Days
       const today=todayISO();
       for(let d=1; d<=nextMonth; d++){ const cell=document.createElement('div'); cell.className='day'; const iso=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; if(iso===today) cell.classList.add('today'); if(datesSet.has(iso)) cell.classList.add('done'); cell.innerHTML=`<div>${d}</div><div class="dot"></div>`; calGrid.appendChild(cell); }
       const monthName=date.toLocaleString(undefined,{month:'long',year:'numeric'}); monthLabel.textContent=monthName;
@@ -473,11 +472,9 @@
 
     /* ===================== 10) Finish & Share ===================== */
     function finishWorkout(){
-      phase='finished'; timeBig.textContent=''; setRingProgress(1); setControls({pause:false,resume:false,next:false});
-      // Log completion
+      phase='finished'; timeBig.textContent='&#127937;'; setRingProgress(1); setControls({pause:false,resume:false,next:false});
       const totalSeconds = sumTime(currentWorkout);
       addLogEntry(currentWorkout,totalSeconds);
-      // Confetti + finish screen
       finishSubtitle.textContent = `Completed: ${currentWorkout.name}`;
       finishTime.textContent = `Time: ${Math.round(totalSeconds/60)} min`;
       const todayCount = loadLog().filter(r=>r.date===todayISO()).length;
@@ -489,74 +486,52 @@
     }
 
     async function shareTextOrFile(title, text, filename, data){
-      // Try Web Share API with file
       try{
-        if(navigator.canShare && ('share' in navigator) && ('canShare' in navigator)){
+        if(navigator.canShare && ('share' in navigator)){
           const file = new File([data], filename, {type:'text/plain'});
-          if(navigator.canShare({files:[file]})){
-            await navigator.share({title, text, files:[file]});
-            return true;
-          }
+          if(navigator.canShare({files:[file]})){ await navigator.share({title, text, files:[file]}); return true; }
         }
       }catch(e){}
-      // Fallback: open a new tab with text (user can copy/save)
       try{
-        const blob=new Blob([text+"\n\n"],{type:'text/plain'});
-        const url=URL.createObjectURL(blob);
-        window.open(url,'_blank');
-        setTimeout(()=>URL.revokeObjectURL(url), 2000);
-        return true;
+        const blob=new Blob([text+"\n\n"],{type:'text/plain'}); const url=URL.createObjectURL(blob);
+        window.open(url,'_blank'); setTimeout(()=>URL.revokeObjectURL(url), 2000); return true;
       }catch(e){}
       return false;
     }
 
-    /* ===================== 11) Import / Export (robust) ===================== */
+    /* ===================== 11) Import / Export ===================== */
     function tryDownload(filename, mime, data){
-      try{
-        const blob=new Blob([data],{type:mime});
-        const url=URL.createObjectURL(blob);
-        const a=document.createElement('a');
-        a.href=url; a.download=filename;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
-        return true;
+      try{ const blob=new Blob([data],{type:mime}); const url=URL.createObjectURL(blob);
+        const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+        setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0); return true;
       }catch(e){ return false; }
     }
-
     async function doExport(){
       const payload = JSON.stringify(WORKOUTS,null,2);
-      // 1) Try Web Share API (lets you save to Files/Drive on mobile)
       try{
         if(navigator.canShare && ('share' in navigator)){
           const file = new File([payload], 'physio-workouts.json', {type:'application/json'});
-          if(navigator.canShare({files:[file]})){
-            await navigator.share({title:'Physio Workouts', text:'My workout plans', files:[file]});
-            return;
-          }
+          if(navigator.canShare({files:[file]})){ await navigator.share({title:'Physio Workouts', text:'My workout plans', files:[file]}); return; }
         }
       }catch(e){}
-      // 2) Try regular download (may be blocked on file://)
       if(tryDownload('physio-workouts.json','application/json', payload)) return;
-      // 3) Fallback: open copy dialog with JSON
       openCopyDialog(payload);
     }
-
     function openCopyDialog(text){
       const overlay=document.createElement('div');
       overlay.style.position='fixed'; overlay.style.inset='0'; overlay.style.background='rgba(0,0,0,.6)';
       overlay.style.display='grid'; overlay.style.placeItems='center'; overlay.style.zIndex='9999';
       const card=document.createElement('div'); card.className='card'; card.style.maxWidth='720px'; card.style.width='92%';
-      card.innerHTML=`<div class="title">Export Workouts (Copy & Save)</div>
+      card.innerHTML=`<div class="title">Export Workouts (Copy &amp; Save)</div>
         <div class="subtitle" style="margin:6px 0 8px">Copy the JSON and save it to a file named <b>physio-workouts.json</b></div>
         <textarea style="width:100%;height:300px;border-radius:10px;border:1px solid rgba(255,255,255,.12);padding:10px;background:#0b1227;color:var(--text)">${text}</textarea>
         <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
-          <button id="copyBtn" class="primary">Copy</button>
-          <button id="closeCopy" class="ghost">Close</button>
+          <button id="copyBtn" class="primary" type="button">Copy</button>
+          <button id="closeCopy" class="ghost" type="button">Close</button>
         </div>`;
       overlay.appendChild(card); document.body.appendChild(overlay);
       card.querySelector('#copyBtn').addEventListener('click',async()=>{
-        try{ await navigator.clipboard.writeText(text); card.querySelector('#copyBtn').textContent='Copied '; }catch(e){ alert('Copy failed — select all & copy manually.'); }
+        try{ await navigator.clipboard.writeText(text); card.querySelector('#copyBtn').textContent='Copied âœ“'; }catch(e){ alert('Copy failed â€” select all & copy manually.'); }
       });
       overlay.addEventListener('click',(e)=>{ if(e.target===overlay) document.body.removeChild(overlay); });
       card.querySelector('#closeCopy').addEventListener('click',()=> document.body.removeChild(overlay));
@@ -583,8 +558,8 @@
         <div style="display:grid;gap:6px;align-content:start">
           <label class="pill">Duration <input class="exDur" type="number" min="1" value="${duration}" style="margin-left:6px;width:72px;background:transparent;color:var(--text);border:none"/>s</label>
           <input id="file-${uid}" type="file" accept="image/*" style="display:none"/>
-          <button class="outline" id="uploadBtn-${uid}">Upload Image</button>
-          <button class="ghost remove">Remove</button>
+          <button class="outline" id="uploadBtn-${uid}" type="button">Upload Image</button>
+          <button class="ghost remove" type="button">Remove</button>
         </div>
       </div>`;
       row.querySelector('.remove').addEventListener('click',()=> row.remove());
@@ -602,7 +577,7 @@
     /* ===================== 13) Events ===================== */
     // Splash
     enterBtn.addEventListener('click',()=>{ ensureAudio(); show('picker'); });
-    aboutBtn.addEventListener('click',()=>{ alert('Physio Workout — single-file app. Create, edit and run workouts. Data is saved locally on this device.'); });
+    aboutBtn.addEventListener('click',()=>{ alert('Physio Workout â€” single-file app. Create, edit and run workouts. Data is saved locally on this device.'); });
     // Picker
     workoutSelect.addEventListener('change', renderWorkoutMeta);
     preCountdownInput.addEventListener('change',()=>{ const w=WORKOUTS.find(x=>x.id===workoutSelect.value); if(w){ w.preCountdown=parseInt(preCountdownInput.value||'10',10); saveStore(WORKOUTS); renderWorkoutMeta(); }});
@@ -617,7 +592,7 @@
     newBtn.addEventListener('click',()=> openEditor(-1));
     exportBtn.addEventListener('click', doExport);
     importBtn.addEventListener('click',()=>importFile.click());
-    importFile.addEventListener('change', async (e)=>{ const file=e.target.files?.[0]; if(!file) return; const text=await file.text(); try{ const data=JSON.parse(text); if(Array.isArray(data)){ WORKOUTS=data; saveStore(WORKOUTS); populateSelect(); workoutSelect.value=WORKOUTS[0]?.id||''; renderWorkoutMeta(); alert('Imported '); } else { alert('Invalid file format'); } }catch(err){ alert('Failed to parse JSON'); } });
+    importFile.addEventListener('change', async (e)=>{ const file=e.target.files?.[0]; if(!file) return; const text=await file.text(); try{ const data=JSON.parse(text); if(Array.isArray(data)){ WORKOUTS=data; saveStore(WORKOUTS); populateSelect(); workoutSelect.value=WORKOUTS[0]?.id||''; renderWorkoutMeta(); alert('Imported âœ“'); } else { alert('Invalid file format'); } }catch(err){ alert('Failed to parse JSON'); } });
     historyBtn.addEventListener('click',()=>{ renderCalendar(); renderLogList(); show('history'); });
 
     // Player
@@ -633,19 +608,26 @@
     nextMonthBtn.addEventListener('click',()=>{ calMonth++; if(calMonth>11){ calMonth=0; calYear++; } renderCalendar(); });
 
     // Editor
-    saveEdBtn.addEventListener('click',()=>{
+    document.getElementById('addExBtn').addEventListener('click',()=> addExerciseRow());
+    document.getElementById('saveEdBtn').addEventListener('click',()=>{
       const name=edTitle.value.trim(); const id=edId.value.trim()||name.toLowerCase().replace(/[^a-z0-9]+/g,'-'); const pre=parseInt(edPre.value||'10',10);
-      const ex=[]; edList.querySelectorAll('.exercise-item').forEach(row=>{ const n=row.querySelector('.exName').value.trim(); const d=parseInt(row.querySelector('.exDur').value||'30',10); const img=row.querySelector('.exImg').value.trim(); const notes=row.querySelector('.exNotes').value.trim(); if(n && d>0) ex.push({name:n,duration:d,img:img||undefined,notes:notes||undefined}); });
+      const ex=[]; edList.querySelectorAll('.exercise-item').forEach(row=>{
+        const n=row.querySelector('.exName').value.trim();
+        const d=parseInt(row.querySelector('.exDur').value||'30',10);
+        const img=row.querySelector('.exImg').value.trim();
+        const notes=row.querySelector('.exNotes').value.trim();
+        if(n && d>0) ex.push({name:n,duration:d,img:img||undefined,notes:notes||undefined});
+      });
       const payload={id,name,preCountdown:pre,exercises:ex}; if(editingIndex>=0) WORKOUTS[editingIndex]=payload; else WORKOUTS.push(payload);
-      saveStore(WORKOUTS); populateSelect(); workoutSelect.value=id; renderWorkoutMeta(); show('picker'); alert('Workout saved ');
+      saveStore(WORKOUTS); populateSelect(); workoutSelect.value=id; renderWorkoutMeta(); show('picker'); alert('Workout saved âœ“');
     });
-    cancelEdBtn.addEventListener('click',()=> show('picker'));
+    document.getElementById('cancelEdBtn').addEventListener('click',()=> show('picker'));
 
     // Finish
     finishBackBtn.addEventListener('click',()=>{ stopConfetti(); show('picker'); });
     finishHistoryBtn.addEventListener('click',()=>{ stopConfetti(); renderCalendar(); renderLogList(); show('history'); });
     finishShareBtn.addEventListener('click',async()=>{
-      const streak=calcStreak(); const text=`I just completed "${currentWorkout?.name||'a workout'}"!  Streak: ${streak} day(s).`;
+      const streak=calcStreak(); const text=`I just completed "${currentWorkout?.name||'a workout'}"! ðŸ’ª Streak: ${streak} day(s).`;
       await shareTextOrFile('Workout Completed', text, 'workout.txt', text);
     });
 
@@ -655,69 +637,36 @@
       voiceToggle.checked=!!PREFS.voice;
       document.addEventListener('pointerdown',()=>ensureAudio(),{once:true});
       show('splash');
-      // Build DOW header once for calendar
+      // Build DOW header for calendar once
       calGrid.innerHTML=''; const dow=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']; dow.forEach(d=>{ const s=document.createElement('div'); s.className='dow'; s.textContent=d; calGrid.appendChild(s); });
     }
     init();
   </script>
 
-  <!-- ===== PWA BOOTSTRAP (manifest + service worker) ===== -->
+  <!-- ===== Dynamic Manifest for PWA (uses logo.png) ===== -->
   <script>
-  (function registerPWA(){
-    const appName = "Physio Workout";
-    const theme = "#22c55e";
-    const bg = "#0f172a";
-
-    // SVG icon (maskable). Replace with PNGs later if you want.
-    const svgIcon = `
-    <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'>
-      <defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
-        <stop offset='0' stop-color='#22c55e'/><stop offset='1' stop-color='#60a5fa'/>
-      </linearGradient></defs>
-      <rect width='512' height='512' rx='100' fill='url(#g)'/>
-      <g fill='#0a0f22' transform='translate(80,100)'>
-        <circle cx='176' cy='60' r='36'/>
-        <rect x='160' y='96' width='32' height='120' rx='16'/>
-        <rect x='96' y='152' width='160' height='32' rx='16' transform='rotate(-20 176 168)'/>
-        <rect x='176' y='190' width='32' height='140' rx='16' transform='rotate(20 192 260)'/>
-        <rect x='120' y='220' width='32' height='140' rx='16' transform='rotate(-20 136 290)'/>
-      </g>
-    </svg>`.trim();
-
-    const svgDataUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgIcon);
-
-    // Start URL = this file. Scope = repo root.
-    const startUrl = new URL(location.pathname.split('/').pop(), location.href).toString();
+  (function registerManifest(){
+    const appName="Physio Workout";
+    const theme="#22c55e";
+    const bg="#0f172a";
+    // Make URLs work both on file:// and GitHub Pages paths
     const scopeUrl = new URL('./', location.href).toString();
-
+    const startUrl = new URL(location.pathname.split('/').pop() || 'index.html', location.href).toString();
     const manifest = {
-      name: appName,
-      short_name: "Physio",
-      start_url: startUrl,
-      scope: scopeUrl,
-      display: "standalone",
-      background_color: bg,
-      theme_color: theme,
-      icons: [
-        { src: svgDataUrl, sizes: "any", type: "image/svg+xml", purpose: "any maskable" }
-      ]
+      name: appName, short_name:"Physio",
+      start_url: startUrl, scope: scopeUrl,
+      display: "standalone", background_color: bg, theme_color: theme,
+      icons: [{ src:"logo.png", sizes:"512x512", type:"image/png", purpose:"any maskable" }]
     };
+    const blob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('link'); link.rel='manifest'; link.href=url; document.head.appendChild(link);
+  })();
+  </script>
 
-    // Inject manifest
-    const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-    const manifestURL = URL.createObjectURL(blob);
-    const link = document.createElement('link');
-    link.rel = 'manifest'; link.href = manifestURL;
-    document.head.appendChild(link);
-
-    // iOS A2HS hints + theme color
-    const meta1 = document.createElement('meta'); meta1.name = "apple-mobile-web-app-capable"; meta1.content = "yes";
-    const meta2 = document.createElement('meta'); meta2.name = "apple-mobile-web-app-status-bar-style"; meta2.content = "black-translucent";
-    const meta3 = document.createElement('meta'); meta3.name = "apple-mobile-web-app-title"; meta3.content = appName;
-    const themeMeta = document.createElement('meta'); themeMeta.name = "theme-color"; themeMeta.content = theme;
-    document.head.append(meta1, meta2, meta3, themeMeta);
-
-    // Minimal SW: cache page for offline
+  <!-- ===== Service worker for offline ===== -->
+  <script>
+  (function registerSW(){
     const swCode = `
       const CACHE = 'physio-v1';
       self.addEventListener('install', (e) => {
@@ -749,11 +698,10 @@
         }
       });
     `.trim();
-
     if ('serviceWorker' in navigator) {
       const swBlob = new Blob([swCode], {type: 'text/javascript'});
       const swUrl = URL.createObjectURL(swBlob);
-      navigator.serviceWorker.register(swUrl, {scope: scopeUrl}).catch(()=>{});
+      navigator.serviceWorker.register(swUrl, {scope: new URL('./', location.href).toString()}).catch(()=>{});
     }
   })();
   </script>
