@@ -1,38 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!--
-    PHYSIO WORKOUT — Video Timestamps Edition
-    - Full-screen YouTube video player per exercise
-    - Each exercise: { name, duration, videoStart } (end = start + duration)
-    - Workout-level videoUrl (YouTube); auto-extracts the videoId
-    - Timer, progress bar, editor (with videoUrl + per-ex start), history, export/import
-  -->
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Physio Workout</title>
 
-  <!-- PWA manifest + icons (add manifest.webmanifest and icons/ yourself) -->
-  <link rel="manifest" href="manifest.webmanifest?v=4">
+  <!-- PWA bits (optional; keep if you already have icons/manifest) -->
+  <link rel="manifest" href="manifest.webmanifest?v=6">
   <link rel="icon" href="icons/icon-192.png" sizes="192x192">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <meta name="theme-color" content="#22c55e">
+  <meta name="theme-color" content="#22c55e"/>
 
   <style>
     :root{
       --bg:#0f172a; --panel:#111827; --muted:#94a3b8; --text:#e5e7eb;
       --accent:#22c55e; --accent-2:#60a5fa;
       --bar-bg: rgba(255,255,255,.15); --bar-fill:#22c55e;
-      --good:#22c55e;
     }
     html,body{height:100%}
     body{margin:0;background:linear-gradient(180deg,var(--bg),#0b1024);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif}
-    .brand{display:flex;gap:12px;align-items:center}
-    .brand .logo{width:42px;height:42px;border-radius:12px;background:conic-gradient(from 0deg, var(--accent), var(--accent-2));display:grid;place-items:center;box-shadow:0 8px 30px rgba(34,197,94,.35);overflow:hidden}
-    .brand .logo img{width:100%;height:100%;object-fit:cover;border-radius:12px}
+    .container{max-width:980px;margin:0 auto;padding:20px}
     .title{font-weight:800;font-size:24px;letter-spacing:.2px}
     .subtitle{font-weight:600;color:var(--muted)}
-    .card{background:rgba(17,24,39,.65);backdrop-filter: blur(8px);border:1px solid rgba(255,255,255,.06);border-radius:18px;padding:18px}
+    .card{background:rgba(17,24,39,.65);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.06);border-radius:18px;padding:18px}
     .row{display:flex;gap:16px;flex-wrap:wrap}
     .col{flex:1 1 280px}
     select,button,input[type="checkbox"]{cursor:pointer}
@@ -46,13 +36,19 @@
     .chip{font-size:12px;border:1px solid rgba(255,255,255,.12);padding:4px 8px;border-radius:999px;color:var(--muted)}
     .list{display:grid;gap:12px}
     .exercise-item{display:flex;gap:12px;align-items:center;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:10px}
-    .exercise-item .thumb{width:56px;height:56px;border-radius:10px;object-fit:cover;background:#0b1227;border:1px solid rgba(255,255,255,.05)}
     .divider{height:1px;background:rgba(255,255,255,.08);margin:14px 0}
     .muted{color:var(--muted)}
-    .upnext{display:flex;gap:12px;align-items:center}
-    .upnext .thumb{width:52px;height:52px;border-radius:10px;border:1px solid rgba(255,255,255,.06);background:#0b1227;object-fit:cover}
 
-    /* Timer donut in the middle */
+    /* Progress bar */
+    .progress-wrap{height:10px;border-radius:999px;background:var(--bar-bg);overflow:hidden;border:1px solid rgba(255,255,255,.10)}
+    .progress-bar{height:100%;width:0%;background:var(--bar-fill);transition:width .2s linear}
+
+    /* Video area (inside the page) */
+    .video-wrap{width:100%;border-radius:14px;border:1px solid rgba(255,255,255,.06);overflow:hidden;background:#000}
+    .video-aspect{position:relative;width:100%;padding-top:56.25%} /* 16:9 */
+    .video-aspect iframe,.video-aspect video{position:absolute;inset:0;width:100%;height:100%}
+
+    /* Donut timer */
     .timer{display:grid;place-items:center;margin:18px 0}
     .ring{position:relative;width:220px;height:220px;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--pct,0)*1%), rgba(255,255,255,.08) 0%)}
     .ring::before{content:"";position:absolute;inset:10px;border-radius:50%;background:#0b1227;border:1px solid rgba(255,255,255,.06)}
@@ -60,42 +56,14 @@
     .big{font-size:44px;font-weight:900;letter-spacing:.6px}
     .label{font-size:14px;color:var(--muted)}
 
-    /* Progress bar */
-    .progress-wrap{height:10px;border-radius:999px;background:var(--bar-bg); overflow:hidden; border:1px solid rgba(255,255,255,.10)}
-    .progress-bar{height:100%; width:0%; background:var(--bar-fill); transition:width .2s linear}
-
-    /* Fullscreen video container */
-    .video-wrap{width:100%;max-height:60dvh;border-radius:14px;border:1px solid rgba(255,255,255,.06);overflow:hidden;background:#000}
-    .video-aspect{position:relative; width:100%; padding-top:56.25%;} /* 16:9 */
-    .video-aspect iframe{position:absolute; inset:0; width:100%; height:100%;}
-
-    /* Calendar */
-    .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
-    .cal .dow{font-size:12px;color:var(--muted);text-align:center}
-    .day{aspect-ratio:1/1;border:1px solid rgba(255,255,255,.08);border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.02)}
-    .day .dot{width:8px;height:8px;border-radius:50%;background:transparent;margin-top:4px}
-    .day.done .dot{background:var(--good)}
-    .day.today{outline:2px solid var(--accent);outline-offset:2px}
-
-    /* Finish */
-    #confetti{position:fixed;inset:0;pointer-events:none}
-    .finish-hero{font-size:28px;font-weight:900;text-align:center;margin:10px 0}
-    .finish-stats{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-    .badge{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:8px 12px}
-
     @media (max-width:560px){ .ring{width:200px;height:200px} .big{font-size:36px} }
   </style>
 </head>
 <body>
-  <canvas id="confetti"></canvas>
-
-  <div id="app" style="max-width:100%;padding:0">
+  <div id="app">
     <!-- ===== SPLASH ===== -->
     <section data-screen="splash" style="min-height:100dvh;display:grid;place-items:center">
       <div style="text-align:center">
-        <div class="brand" style="justify-content:center;margin-bottom:14px">
-          <div class="logo" style="width:72px;height:72px;border-radius:20px"><img id="splashLogo" src="logo.png" alt="logo" onerror="this.style.display='none'"/></div>
-        </div>
         <div class="title" style="font-size:34px">Physio Workout</div>
         <div class="subtitle" style="margin-top:6px">Tap to begin your session</div>
         <div style="margin-top:22px;display:flex;gap:10px;justify-content:center">
@@ -105,715 +73,516 @@
       </div>
     </section>
 
-    <!-- ===== PICKER / SETTINGS ===== -->
-    <section data-screen="picker" style="min-height:100dvh;display:none;padding:22px">
-      <header style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div class="brand">
-          <div class="logo"><img id="pickerLogo" src="logo.png" alt="logo" onerror="this.style.display='none'"/></div>
+    <!-- ===== PICKER ===== -->
+    <section data-screen="picker" style="min-height:100dvh;display:none">
+      <div class="container">
+        <header style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
           <div>
             <div class="title">Choose Workout</div>
             <div class="subtitle">Configure options</div>
           </div>
-        </div>
-        <div class="toggles" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-          <button id="historyBtn" class="outline" type="button">History</button>
-          <label class="pill"><input id="muteToggle" type="checkbox" /> Mute beeps</label>
-          <label class="pill"><input id="vibrateToggle" type="checkbox" checked /> Vibrate</label>
-          <label class="pill"><input id="wakelockToggle" type="checkbox" checked /> Screen awake</label>
-        </div>
-      </header>
+          <div class="toggles" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <label class="pill"><input id="muteToggle" type="checkbox"/> Mute beeps</label>
+            <label class="pill"><input id="vibrateToggle" type="checkbox" checked/> Vibrate</label>
+            <label class="pill"><input id="wakelockToggle" type="checkbox" checked/> Screen awake</label>
+            <label class="pill"><input id="voiceToggle" type="checkbox"/> Voice cues</label>
+          </div>
+        </header>
 
-      <div class="row">
-        <div class="col card">
-          <label class="subtitle" for="workoutSelect">Workout</label><br/>
-          <select id="workoutSelect" style="width:100%"></select>
-          <div id="workoutMeta" class="subtitle" style="margin-top:8px;color:var(--muted)"></div>
-          <div class="divider"></div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button id="startBtn" class="primary" type="button" disabled>Start</button>
-            <button id="editBtn" class="outline" type="button">Edit Selected</button>
-            <button id="newBtn" class="ghost" type="button">New Workout</button>
-            <button id="exportBtn" class="ghost" type="button">Export</button>
-            <input id="importFile" type="file" accept="application/json" style="display:none"/>
-            <button id="importBtn" class="ghost" type="button">Import</button>
+        <div class="row">
+          <div class="col card">
+            <label class="subtitle" for="workoutSelect">Workout</label><br/>
+            <select id="workoutSelect" style="width:100%"></select>
+            <div id="workoutMeta" class="subtitle" style="margin-top:8px;color:var(--muted)"></div>
+            <div class="divider"></div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <button id="startBtn" class="primary" type="button" disabled>Start</button>
+              <button id="editBtn" class="outline" type="button">Edit Selected</button>
+              <button id="newBtn" class="ghost" type="button">New Workout</button>
+              <button id="exportBtn" class="ghost" type="button">Export</button>
+              <input id="importFile" type="file" accept="application/json" style="display:none"/>
+              <button id="importBtn" class="ghost" type="button">Import</button>
+            </div>
+          </div>
+
+          <div class="col card">
+            <div class="subtitle">Session Options</div>
+            <div class="list" style="margin-top:8px">
+              <label class="pill">Get ready (s):
+                <input id="preCountdownInput" type="number" min="0" value="10" style="margin-left:8px;width:80px;background:transparent;color:var(--text);border:none"/>
+              </label>
+              <label class="pill" style="gap:8px;align-items:center">
+                Workout video URL
+                <input id="workoutVideoUrl" placeholder="YouTube or .mp4 URL" style="flex:1;min-width:220px;background:#0b1227;color:var(--text);border-radius:10px;border:1px solid rgba(255,255,255,.12);padding:8px"/>
+              </label>
+            </div>
           </div>
         </div>
 
-        <div class="col card">
-          <div class="subtitle">Session Options</div>
-          <div class="list" style="margin-top:8px">
-            <label class="pill">Get ready (s):
-              <input id="preCountdownInput" type="number" min="0" value="10" style="margin-left:8px;width:80px;background:transparent;color:var(--text);border:none"/>
-            </label>
-            <label class="pill"><input id="voiceToggle" type="checkbox" /> Voice cues</label>
-            <label class="pill">Workout video URL
-              <input id="workoutVideoUrl" placeholder="Paste YouTube link (e.g., https://youtu.be/...)" style="margin-left:8px;flex:1;min-width:220px;background:#0b1227;color:var(--text);border-radius:10px;border:1px solid rgba(255,255,255,.12);padding:8px"/>
-            </label>
-          </div>
+        <div class="card" style="margin-top:14px">
+          <div class="subtitle" style="margin-bottom:6px">Exercises in selected workout</div>
+          <div id="exerciseList" class="list"></div>
         </div>
-      </div>
-
-      <div class="card" style="margin-top:14px">
-        <div class="subtitle" style="margin-bottom:6px">Exercises in selected workout</div>
-        <div id="exerciseList" class="list"></div>
       </div>
     </section>
 
     <!-- ===== EDITOR ===== -->
-    <section data-screen="editor" style="min-height:100dvh;display:none;padding:22px">
-      <div class="brand" style="margin-bottom:12px">
-        <div class="logo"><img id="editorLogo" src="logo.png" alt="logo" onerror="this.style.display='none'"/></div>
-        <div>
-          <div class="title">Workout Editor (video timestamps)</div>
-          <div class="subtitle">Add a single YouTube link for the workout, then set per-exercise start times.</div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="row">
-          <div class="col">
-            <label class="subtitle">Title</label>
-            <input id="edTitle" placeholder="e.g., Neck &amp; Shoulder Release" style="width:100%;margin-top:6px;border-radius:10px;border:1px solid rgba(255,255,255,.12);padding:10px;background:#0b1227;color:var(--text)"/>
+    <section data-screen="editor" style="min-height:100dvh;display:none">
+      <div class="container">
+        <div class="title" style="margin-bottom:10px">Workout Editor</div>
+        <div class="card">
+          <div class="row">
+            <div class="col">
+              <label class="subtitle">Title</label>
+              <input id="edTitle" placeholder="e.g., Neck & Shoulder Release" style="width:100%;margin-top:6px;border-radius:10px;border:1px solid rgba(255,255,255,.12);padding:10px;background:#0b1227;color:var(--text)"/>
+            </div>
+            <div class="col">
+              <label class="subtitle">ID</label>
+              <input id="edId" placeholder="unique-id" style="width:100%;margin-top:6px;border-radius:10px;border:1px solid rgba(255,255,255,.12);padding:10px;background:#0b1227;color:var(--text)"/>
+            </div>
           </div>
-          <div class="col">
-            <label class="subtitle">ID</label>
-            <input id="edId" placeholder="unique-id" style="width:100%;margin-top:6px;border-radius:10px;border:1px solid rgba(255,255,255,.12);padding:10px;background:#0b1227;color:var(--text)"/>
+          <div class="row" style="margin-top:10px">
+            <div class="col">
+              <label class="subtitle">Get ready (s)</label>
+              <input id="edPre" type="number" min="0" value="10" style="width:100%;margin-top:6px;border-radius:10px;border:1px solid rgba(255,255,255,.12);padding:10px;background:#0b1227;color:var(--text)"/>
+            </div>
+            <div class="col">
+              <label class="subtitle">Workout video URL (YouTube or .mp4)</label>
+              <input id="edVideoUrl" placeholder="https://youtu.be/... or https://.../video.mp4" style="width:100%;margin-top:6px;border-radius:10px;border:1px solid rgba(255,255,255,.12);padding:10px;background:#0b1227;color:var(--text)"/>
+            </div>
           </div>
-        </div>
-        <div class="row" style="margin-top:10px">
-          <div class="col">
-            <label class="subtitle">Get ready (s)</label>
-            <input id="edPre" type="number" min="0" value="10" style="width:100%;margin-top:6px;border-radius:10px;border:1px solid rgba(255,255,255,.12);padding:10px;background:#0b1227;color:var(--text)"/>
+          <div class="divider"></div>
+          <div class="subtitle">Exercises (optional videoStart → shows video phase first)</div>
+          <div id="edList" class="list" style="margin-top:8px"></div>
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+            <button id="addExBtn" class="outline" type="button">+ Add Exercise</button>
+            <button id="saveEdBtn" class="primary" type="button">Save Workout</button>
+            <button id="cancelEdBtn" class="ghost" type="button">Cancel</button>
           </div>
-          <div class="col">
-            <label class="subtitle">Workout video URL (YouTube)</label>
-            <input id="edVideoUrl" placeholder="https://youtu.be/..." style="width:100%;margin-top:6px;border-radius:10px;border:1px solid rgba(255,255,255,.12);padding:10px;background:#0b1227;color:var(--text)"/>
-          </div>
-        </div>
-        <div class="divider"></div>
-        <div class="subtitle">Exercises (set videoStart in seconds + Duration)</div>
-        <div id="edList" class="list" style="margin-top:8px"></div>
-        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-          <button id="addExBtn" class="outline" type="button">+ Add Exercise</button>
-          <button id="saveEdBtn" class="primary" type="button">Save Workout</button>
-          <button id="cancelEdBtn" class="ghost" type="button">Cancel</button>
         </div>
       </div>
     </section>
 
-    <!-- ===== PLAYER (video fullscreen area) ===== -->
-    <section data-screen="player" style="min-height:100dvh;display:none;padding:0">
-      <div style="display:grid;grid-template-rows:auto auto 1fr auto;min-height:100dvh">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px">
+    <!-- ===== PLAYER (video INSIDE page → then timer) ===== -->
+    <section data-screen="player" style="min-height:100dvh;display:none">
+      <div class="container" style="display:grid;grid-template-rows:auto auto 1fr auto;min-height:100dvh;gap:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
           <button id="backToPicker" class="ghost" type="button">&larr; Exit</button>
           <div class="title" id="currentWorkoutTitle" style="font-size:18px"></div>
-          <div class="chip" id="progressChip">0%</div>
+          <div class="chip" id="progressChip">1/1</div>
         </div>
-        <div style="padding:0 16px 6px">
+
+        <div>
           <div class="progress-wrap"><div id="progressBar" class="progress-bar"></div></div>
         </div>
 
-        <!-- Full-screen video area -->
-        <div style="display:grid;place-items:center;padding:8px 16px">
-          <div style="max-width:900px;width:100%">
-            <div class="video-wrap">
-              <div class="video-aspect">
-                <!-- YouTube player will mount here -->
-                <div id="ytPlayer"></div>
-              </div>
+        <div class="card" id="watchCard" style="display:none">
+          <div class="subtitle">Watch demo</div>
+          <div class="title" id="watchTitle" style="margin:6px 0 10px"></div>
+          <div class="video-wrap">
+            <div class="video-aspect">
+              <div id="ytPlayer" style="display:none"></div>
+              <video id="mp4Player" style="display:none" playsinline controls></video>
             </div>
-
-            <!-- Timer + controls -->
-            <div class="timer" style="margin:12px 0">
-              <div id="ring" class="ring"><div class="readout">
-                <div id="timeBig" class="big">00:00</div>
-                <div id="phaseLabel" class="label">Ready</div>
-              </div></div>
-            </div>
-            <div class="controls" style="margin-top:2px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
-              <button id="pauseBtn" class="outline" type="button" disabled>Pause</button>
-              <button id="resumeBtn" class="outline" type="button" disabled>Resume</button>
-              <button id="nextBtn" class="primary" type="button" disabled>Next &#9654;</button>
-              <button id="resetBtn" class="ghost" type="button">Reset</button>
-            </div>
-            <div class="upnext" style="margin-top:10px">
-              <div class="thumb" id="nextThumb" style="display:none"></div>
-              <div>
-                <div class="label">Up next</div>
-                <div id="nextName" style="font-weight:700"></div>
-              </div>
-            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:10px">
+            <button id="watchNextBtn" class="primary" type="button">Next → Start Exercise</button>
           </div>
         </div>
 
-        <div class="subtitle" style="text-align:center;color:var(--muted);padding-bottom:12px">Tap once to enable sounds.</div>
-      </div>
-    </section>
+        <div class="card" id="timerCard" style="display:none">
+          <div class="subtitle">Current exercise</div>
+          <div id="currentName" class="title" style="margin:6px 0 8px"></div>
 
-    <!-- ===== HISTORY ===== -->
-    <section data-screen="history" style="min-height:100dvh;display:none;padding:22px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div class="brand">
-          <div class="logo"><img id="historyLogo" src="logo.png" alt="logo" onerror="this.style.display='none'"/></div>
-          <div><div class="title">History</div><div class="subtitle">Calendar &amp; streak</div></div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button id="prevMonthBtn" class="outline" type="button">&#9664;</button>
-          <div id="monthLabel" class="pill">Month</div>
-          <button id="nextMonthBtn" class="outline" type="button">&#9654;</button>
-          <button id="backFromHistory" class="ghost" type="button">Back</button>
-        </div>
-      </div>
-      <div class="card">
-        <div class="subtitle" id="streakLabel">Streak: 0 days</div>
-        <div class="divider"></div>
-        <div class="cal" id="calGrid"></div>
-      </div>
-      <div class="card" style="margin-top:14px">
-        <div class="subtitle">Recent sessions</div>
-        <div id="logList" class="list" style="margin-top:8px"></div>
-      </div>
-    </section>
+          <div class="timer" style="margin:12px 0">
+            <div id="ring" class="ring"><div class="readout">
+              <div id="timeBig" class="big">00:00</div>
+              <div id="phaseLabel" class="label">Get Ready</div>
+            </div></div>
+          </div>
 
-    <!-- ===== FINISH ===== -->
-    <section data-screen="finish" style="min-height:100dvh;display:none;padding:22px">
-      <div class="card" style="text-align:center">
-        <div class="finish-hero">&#127881; You&rsquo;re done!</div>
-        <div class="subtitle" id="finishSubtitle">Great job completing your workout.</div>
-        <div class="finish-stats" style="margin:10px 0 6px">
-          <div class="badge" id="finishTime">Time: &mdash;</div>
-          <div class="badge" id="finishToday">Today: &mdash;</div>
-          <div class="badge" id="finishStreak">Streak: &mdash;</div>
+          <div class="controls" style="margin-top:2px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+            <button id="pauseBtn" class="outline" type="button" disabled>Pause</button>
+            <button id="resumeBtn" class="outline" type="button" disabled>Resume</button>
+            <button id="nextBtn" class="primary" type="button" disabled>Next ▶</button>
+            <button id="resetBtn" class="ghost" type="button">Reset</button>
+          </div>
+
+          <div class="divider"></div>
+          <div class="subtitle">Up next</div>
+          <div id="nextName" class="muted">—</div>
         </div>
-        <div style="display:flex;gap:10px;justify-content:center;margin-top:10px;flex-wrap:wrap">
-          <button id="finishBackBtn" class="primary" type="button">Back to Workouts</button>
-          <button id="finishHistoryBtn" class="outline" type="button">Open History</button>
-          <button id="finishShareBtn" class="ghost" type="button">Share Result</button>
-        </div>
+
+        <div class="subtitle" style="text-align:center;color:var(--muted)">Tip: tap once to enable sounds.</div>
       </div>
     </section>
   </div>
 
-  <!-- ===== SCRIPTS ===== -->
   <script>
-    // ---------------- Router ----------------
-    function show(screen){
-      document.querySelectorAll('[data-screen]').forEach(s=>s.style.display='none');
-      document.querySelector('[data-screen="'+screen+'"]').style.display='block';
-      window.scrollTo(0,0);
-    }
+  /* ============== 0) Router & storage ============== */
+  function show(screen){
+    document.querySelectorAll('[data-screen]').forEach(s=>s.style.display='none');
+    document.querySelector('[data-screen="'+screen+'"]').style.display='block';
+    window.scrollTo(0,0);
+  }
+  const LS_KEY='physio.workouts.v5.embedded';
+  const PREFS_KEY='physio.prefs.v1';
+  const saveStore=d=>localStorage.setItem(LS_KEY,JSON.stringify(d));
+  const loadStore=()=>{try{return JSON.parse(localStorage.getItem(LS_KEY))||null;}catch{return null;}};
+  const savePrefs=p=>localStorage.setItem(PREFS_KEY,JSON.stringify(p));
+  const loadPrefs=()=>{try{return JSON.parse(localStorage.getItem(PREFS_KEY))||{voice:false};}catch{return {voice:false};}};
 
-    // ---------------- Storage ----------------
-    const LS_KEY='physio.workouts.v4.video';
-    const PREFS_KEY='physio.prefs.v1';
-    const LOG_KEY='physio.log.v1';
-    const saveStore = d => localStorage.setItem(LS_KEY, JSON.stringify(d));
-    const loadStore = () => { try{return JSON.parse(localStorage.getItem(LS_KEY))||null;}catch{ return null; } };
-    const savePrefs = p => localStorage.setItem(PREFS_KEY, JSON.stringify(p));
-    const loadPrefs = () => { try{return JSON.parse(localStorage.getItem(PREFS_KEY))||{voice:false};}catch{return {voice:false};} };
-    const saveLog = arr => localStorage.setItem(LOG_KEY, JSON.stringify(arr));
-    const loadLog = () => { try{return JSON.parse(localStorage.getItem(LOG_KEY))||[];}catch{return [];} };
+  /* ============== 1) Helpers ============== */
+  function fmt(sec){sec=Math.max(0,Math.ceil(sec));const m=String(Math.floor(sec/60)).padStart(2,'0');const s=String(sec%60).padStart(2,'0');return `${m}:${s}`;}
+  function setRingProgress(p){ document.getElementById('ring').style.setProperty('--pct',(Math.max(0,Math.min(1,p))*100).toFixed(1)); }
+  function isYouTube(url){ try{const u=new URL(url); return u.hostname.includes('youtube.com')||u.hostname.includes('youtu.be');}catch{return false;} }
+  function extractYouTubeId(url){ if(!url) return ''; try{const u=new URL(url); if(u.hostname.includes('youtu.be')) return u.pathname.slice(1); if(u.searchParams.get('v')) return u.searchParams.get('v'); const m=u.pathname.match(/\/embed\/([a-zA-Z0-9_-]+)/); if(m) return m[1];}catch{} return url; }
 
-    // ---------------- Helpers ----------------
-    function fmt(sec){ sec=Math.max(0,Math.ceil(sec)); const m=String(Math.floor(sec/60)).padStart(2,'0'); const s=String(sec%60).padStart(2,'0'); return `${m}:${s}`; }
-    function todayISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
-    function setRingProgress(p){ document.getElementById('ring').style.setProperty('--pct',(Math.max(0,Math.min(1,p))*100).toFixed(1)); }
-    function svgPlaceholder(label, hue=180){
-      const bg=`hsl(${hue},70%,18%)`, fg=`hsl(${hue},75%,60%)`;
-      const svg=encodeURIComponent(`<?xml version='1.0' encoding='UTF-8'?><svg xmlns='http://www.w3.org/2000/svg' width='800' height='500'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='${fg}' stop-opacity='.55'/><stop offset='1' stop-color='${fg}' stop-opacity='.15'/></linearGradient></defs><rect width='100%' height='100%' fill='${bg}'/><circle cx='140' cy='160' r='70' fill='url(#g)'/><rect x='280' y='110' rx='28' ry='28' width='420' height='100' fill='url(#g)'/><rect x='280' y='260' rx='28' ry='28' width='360' height='100' fill='url(#g)'/><text x='400' y='430' font-family='Inter,Arial,Helvetica,sans-serif' font-weight='800' font-size='64' text-anchor='middle' fill='${fg}'>${label}</text></svg>`);
-      return `data:image/svg+xml;charset=UTF-8,${svg}`;
-    }
-    function extractYouTubeId(url){
-      if(!url) return '';
-      try{
-        const u = new URL(url);
-        if(u.hostname.includes('youtu.be')) return u.pathname.slice(1);
-        if(u.hostname.includes('youtube.com')){
-          if(u.searchParams.get('v')) return u.searchParams.get('v');
-          const m = u.pathname.match(/\/embed\/([a-zA-Z0-9_-]+)/); if(m) return m[1];
-        }
-      }catch{}
-      return url; // fallback (user might paste an ID)
-    }
+  /* ============== 2) Defaults ============== */
+  const DEFAULTS=[{
+    id:'video-demo',
+    name:'Video + Timer Demo',
+    preCountdown:10,
+    videoUrl:'https://youtu.be/XWQvmh_INTQ',
+    exercises:[
+      {name:'Chin Tucks',          duration:40, videoStart:12},
+      {name:'Upper Trap Stretch',  duration:40, videoStart:60},
+      {name:'Levator Scapulae',    duration:40, videoStart:110},
+      {name:'Shoulder Rolls',      duration:60, videoStart:160},
+      {name:'Breathing Hold (no video)', duration:30} // no videoStart → skips watch phase
+    ]
+  }];
+  let WORKOUTS = loadStore() || DEFAULTS.slice();
+  const PREFS = loadPrefs();
 
-    // ---------------- Defaults (with videoUrl + per-ex videoStart) ----------------
-    const DEFAULT_VIDEO = "https://youtu.be/XWQvmh_INTQ";
-    const DEFAULTS=[{
-      id:'neck-shoulder',
-      name:'Neck & Shoulder (Video)',
-      preCountdown:10,
-      videoUrl: DEFAULT_VIDEO,
-      exercises:[
-        {name:'Chin Tucks', duration:40, videoStart: 12},
-        {name:'Upper Trap Stretch', duration:40, videoStart: 60},
-        {name:'Levator Scapulae', duration:40, videoStart: 110},
-        {name:'Shoulder Rolls', duration:60, videoStart: 160},
-        {name:'Scapular Retractions', duration:60, videoStart: 240},
-        {name:'Pec Doorway Stretch', duration:60, videoStart: 320},
-      ]
-    }];
+  /* ============== 3) Elements ============== */
+  // splash
+  const enterBtn=document.getElementById('enterBtn'); const aboutBtn=document.getElementById('aboutBtn');
+  // picker
+  const workoutSelect=document.getElementById('workoutSelect'); const startBtn=document.getElementById('startBtn');
+  const editBtn=document.getElementById('editBtn'); const newBtn=document.getElementById('newBtn');
+  const exportBtn=document.getElementById('exportBtn'); const importBtn=document.getElementById('importBtn'); const importFile=document.getElementById('importFile');
+  const workoutMeta=document.getElementById('workoutMeta'); const exerciseList=document.getElementById('exerciseList');
+  const preCountdownInput=document.getElementById('preCountdownInput'); const voiceToggle=document.getElementById('voiceToggle');
+  const muteToggle=document.getElementById('muteToggle'); const vibrateToggle=document.getElementById('vibrateToggle'); const wakelockToggle=document.getElementById('wakelockToggle');
+  const workoutVideoUrl=document.getElementById('workoutVideoUrl');
+  // player
+  const currentWorkoutTitle=document.getElementById('currentWorkoutTitle'); const progressBar=document.getElementById('progressBar'); const progressChip=document.getElementById('progressChip');
+  const watchCard=document.getElementById('watchCard'); const watchTitle=document.getElementById('watchTitle'); const watchNextBtn=document.getElementById('watchNextBtn');
+  const timerCard=document.getElementById('timerCard'); const currentName=document.getElementById('currentName'); const nextName=document.getElementById('nextName');
+  const timeBig=document.getElementById('timeBig'); const phaseLabel=document.getElementById('phaseLabel'); const backToPicker=document.getElementById('backToPicker');
+  const pauseBtn=document.getElementById('pauseBtn'); const resumeBtn=document.getElementById('resumeBtn'); const nextBtn=document.getElementById('nextBtn'); const resetBtn=document.getElementById('resetBtn');
 
-    let WORKOUTS = loadStore() || DEFAULTS.slice();
-    const PREFS = loadPrefs();
+  // players
+  const mp4Player=document.getElementById('mp4Player'); let ytPlayer=null, ytReady=false;
 
-    // ---------------- Elements ----------------
-    const enterBtn=document.getElementById('enterBtn');
-    const aboutBtn=document.getElementById('aboutBtn');
-    const workoutSelect=document.getElementById('workoutSelect');
-    const startBtn=document.getElementById('startBtn');
-    const editBtn=document.getElementById('editBtn');
-    const newBtn=document.getElementById('newBtn');
-    const exportBtn=document.getElementById('exportBtn');
-    const importBtn=document.getElementById('importBtn');
-    const importFile=document.getElementById('importFile');
-    const workoutMeta=document.getElementById('workoutMeta');
-    const exerciseList=document.getElementById('exerciseList');
-    const preCountdownInput=document.getElementById('preCountdownInput');
-    const voiceToggle=document.getElementById('voiceToggle');
-    const muteToggle=document.getElementById('muteToggle');
-    const vibrateToggle=document.getElementById('vibrateToggle');
-    const wakelockToggle=document.getElementById('wakelockToggle');
-    const historyBtn=document.getElementById('historyBtn');
-    const workoutVideoUrl=document.getElementById('workoutVideoUrl');
+  /* ============== 4) Audio / wake lock / voice ============== */
+  let audioCtx=null; function ensureAudio(){ if(!audioCtx){ try{audioCtx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){} } if(audioCtx && audioCtx.state==='suspended') audioCtx.resume();}
+  function beep({duration=200,frequency=880,type='sine',volume=0.15}={}){ if(muteToggle.checked) return; ensureAudio(); if(!audioCtx) return; const osc=audioCtx.createOscillator(), g=audioCtx.createGain(); osc.type=type; osc.frequency.value=frequency; g.gain.value=volume; osc.connect(g).connect(audioCtx.destination); const t=audioCtx.currentTime; osc.start(t); osc.stop(t+duration/1000); }
+  function vibrate(p=[120]){ if('vibrate' in navigator && vibrateToggle.checked) navigator.vibrate(p); }
+  function speak(text){ if(!voiceToggle.checked) return; try{ const u=new SpeechSynthesisUtterance(text); u.rate=1.05; u.pitch=1; u.volume=0.9; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);}catch(e){} }
+  let wakeLock=null; async function requestWakeLock(){ if(!('wakeLock' in navigator)) return; try{ if(!wakeLock) wakeLock=await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release',()=>wakeLock=null);}catch(e){} }
 
-    const currentWorkoutTitle=document.getElementById('currentWorkoutTitle');
-    const timeBig=document.getElementById('timeBig');
-    const phaseLabel=document.getElementById('phaseLabel');
-    const pauseBtn=document.getElementById('pauseBtn');
-    const resumeBtn=document.getElementById('resumeBtn');
-    const nextBtn=document.getElementById('nextBtn');
-    const resetBtn=document.getElementById('resetBtn');
-    const backToPicker=document.getElementById('backToPicker');
-    const progressBar=document.getElementById('progressBar');
-    const progressChip=document.getElementById('progressChip');
-    const nextName=document.getElementById('nextName');
+  /* ============== 5) Picker rendering ============== */
+  function sumTime(w){ const ex=w.exercises.reduce((a,e)=>a+e.duration,0); const gets=w.exercises.length*(w.preCountdown||10); return ex+gets; }
+  function populateSelect(){ workoutSelect.innerHTML=''; WORKOUTS.forEach(w=>{ const o=document.createElement('option'); o.value=w.id; o.textContent=w.name; workoutSelect.appendChild(o); }); }
+  function renderList(w){
+    exerciseList.innerHTML='';
+    w.exercises.forEach((ex,i)=>{
+      const li=document.createElement('div'); li.className='exercise-item';
+      li.innerHTML = `<div style="font-weight:700">${ex.name}</div>
+                      <div class="muted" style="margin-left:auto">${ex.duration}s${ex.videoStart!=null?' • video@'+ex.videoStart+'s':''}</div>`;
+      exerciseList.appendChild(li);
+    });
+  }
+  function renderWorkoutMeta(){
+    const w=WORKOUTS.find(x=>x.id===workoutSelect.value);
+    if(!w){ workoutMeta.textContent=''; startBtn.disabled=true; return; }
+    const total=sumTime(w);
+    workoutMeta.innerHTML=`Total ~ <strong>${Math.round(total/60)} min</strong> • Exercises: <strong>${w.exercises.length}</strong>`;
+    preCountdownInput.value=w.preCountdown ?? 10; workoutVideoUrl.value=w.videoUrl||'';
+    renderList(w); startBtn.disabled=false; voiceToggle.checked=!!PREFS.voice;
+  }
 
-    const calGrid=document.getElementById('calGrid');
-    const streakLabel=document.getElementById('streakLabel');
-    const backFromHistory=document.getElementById('backFromHistory');
-    const prevMonthBtn=document.getElementById('prevMonthBtn');
-    const nextMonthBtn=document.getElementById('nextMonthBtn');
-    const monthLabel=document.getElementById('monthLabel');
-    const logList=document.getElementById('logList');
-
-    const finishSubtitle=document.getElementById('finishSubtitle');
-    const finishTime=document.getElementById('finishTime');
-    const finishToday=document.getElementById('finishToday');
-    const finishStreak=document.getElementById('finishStreak');
-    const finishBackBtn=document.getElementById('finishBackBtn');
-    const finishHistoryBtn=document.getElementById('finishHistoryBtn');
-    const finishShareBtn=document.getElementById('finishShareBtn');
-    const confettiCanvas=document.getElementById('confetti');
-
-    // ---------------- Audio / Voice / Wake Lock ----------------
-    let audioCtx=null;
-    function ensureAudio(){ if(!audioCtx){ try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(audioCtx && audioCtx.state==='suspended') audioCtx.resume(); }
-    function beep({duration=200,frequency=880,type='sine',volume=0.15}={}){ if(muteToggle.checked) return; ensureAudio(); if(!audioCtx) return; const osc=audioCtx.createOscillator(), gain=audioCtx.createGain(); osc.type=type; osc.frequency.value=frequency; gain.gain.value=volume; osc.connect(gain).connect(audioCtx.destination); const t=audioCtx.currentTime; osc.start(t); osc.stop(t+duration/1000); }
-    function vibrate(p=[120]){ if('vibrate' in navigator && vibrateToggle.checked) navigator.vibrate(p); }
-    function speak(text){ if(!voiceToggle.checked) return; try{ const u=new SpeechSynthesisUtterance(text); u.rate=1.05; u.pitch=1; u.volume=0.9; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);}catch(e){} }
-    let wakeLock=null; async function requestWakeLock(){ if(!('wakeLock' in navigator)) return; try{ if(!wakeLock) wakeLock=await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release',()=>wakeLock=null);}catch(e){} }
-
-    // ---------------- Picker rendering ----------------
-    function sumTime(w){
-      const ex = w.exercises.reduce((a,e)=>a+e.duration,0);
-      const gets = w.exercises.length * (w.preCountdown||10);
-      return ex+gets;
-    }
-    function populateSelect(){ workoutSelect.innerHTML=''; WORKOUTS.forEach(w=>{ const o=document.createElement('option'); o.value=w.id; o.textContent=w.name; workoutSelect.appendChild(o); }); }
-    function renderList(w){
-      exerciseList.innerHTML='';
-      w.exercises.forEach((ex,i)=>{
-        const li=document.createElement('div'); li.className='exercise-item';
-        const img=document.createElement('div'); img.className='thumb'; img.style.backgroundImage=`url('${svgPlaceholder(ex.name,(i*37)%360)}')`; img.style.backgroundSize='cover';
-        const info=document.createElement('div'); info.innerHTML=`<div style="font-weight:700">${ex.name}</div><div class="muted">${ex.duration}s @ ${ex.videoStart||0}s</div>`;
-        const order=document.createElement('div'); order.className='chip'; order.textContent=`#${i+1}`; order.style.marginLeft='auto';
-        li.append(img,info,order); exerciseList.appendChild(li);
-      });
-    }
-    function renderWorkoutMeta(){
-      const w = WORKOUTS.find(x=>x.id===workoutSelect.value);
-      if(!w){ workoutMeta.textContent=''; startBtn.disabled=true; return; }
-      const total=sumTime(w);
-      workoutMeta.innerHTML=`Total &nbsp;~&nbsp; <strong>${Math.round(total/60)} min</strong> &nbsp;&bull;&nbsp; Exercises: <strong>${w.exercises.length}</strong>`;
-      preCountdownInput.value=w.preCountdown ?? 10; workoutVideoUrl.value = w.videoUrl || '';
-      renderList(w); startBtn.disabled=false; voiceToggle.checked=!!PREFS.voice;
-    }
-
-    // ---------------- YouTube Player (IFrame API) ----------------
-    let ytPlayer=null, ytReady=false;
-    function onYouTubeIframeAPIReady(){
-      ytPlayer = new YT.Player('ytPlayer', {
-        height: '100%', width: '100%',
-        videoId: extractYouTubeId(WORKOUTS[0]?.videoUrl||DEFAULT_VIDEO),
-        playerVars: { rel:0, playsinline:1, modestbranding:1, controls:0 },
-        events: {
-          onReady: () => { ytReady=true; },
-          onStateChange: () => {}
-        }
-      });
-    }
-
-    // ---------------- Session control ----------------
-    let currentWorkout=null, idx=0, phase='idle', endAt=0, rafId=null, paused=false, pauseRemain=0;
-    let elapsedOverall=0, totalPlanned=1;
-
-    function stopLoop(){ if(rafId){ cancelAnimationFrame(rafId); rafId=null; } }
-    function runLoop(step){ stopLoop(); const tick=()=>{ if(step()===true) return; rafId=requestAnimationFrame(tick); }; rafId=requestAnimationFrame(tick); }
-    function updateOverallProgress(){ const pct=Math.max(0,Math.min(100,Math.round((elapsedOverall/totalPlanned)*100))); progressBar.style.width=pct+'%'; progressChip.textContent=pct+'%'; }
-    function loadCurrent(){
-      const ex=currentWorkout.exercises[idx];
-      const next=currentWorkout.exercises[idx+1]; nextName.textContent=next? next.name : '—';
-      // Seek preview frame during "Get Ready": pause at start frame
-      if(ytReady && currentWorkout.videoUrl){
-        const id = extractYouTubeId(currentWorkout.videoUrl);
-        const curId = ytPlayer && ytPlayer.getVideoData ? ytPlayer.getVideoData().video_id : null;
-        if(curId && curId !== id){ ytPlayer.cueVideoById(id); }
-        const start = ex.videoStart||0;
-        ytPlayer.seekTo(start, true);
-        ytPlayer.pauseVideo();
+  /* ============== 6) YouTube helper (lazy load API) ============== */
+  function ensureYouTubePlayer(videoId){
+    return new Promise(resolve=>{
+      function ready(){
+        if(ytPlayer){ resolve(); return; }
+        ytPlayer = new YT.Player('ytPlayer', {
+          height:'100%', width:'100%',
+          videoId,
+          playerVars:{rel:0,playsinline:1,modestbranding:1,controls:1},
+          events:{ onReady:()=>{ ytReady=true; resolve(); } }
+        });
+        document.getElementById('ytPlayer').style.display='block';
       }
-    }
-
-    function startReady(count){
-      phase='ready'; phaseLabel.textContent='Get Ready'; const total=count; endAt=Date.now()+total*1000; setControls({pause:true,resume:true,next:true}); speak('Get ready');
-      let added=0;
-      runLoop(()=>{
-        const remain=(endAt-Date.now())/1000;
-        const progressed=Math.min(total,Math.max(0,total-remain));
-        const inc=progressed-added; if(inc>0){ elapsedOverall+=inc; added+=inc; updateOverallProgress(); }
-        const p=1-Math.max(0,Math.min(1,remain/total)); setRingProgress(p); timeBig.textContent=fmt(remain);
-        if(remain<=0){ beep({duration:160,frequency:1200,type:'triangle'}); vibrate([160]); startExercise(); return true; }
-      });
-    }
-
-    function startExercise(){
-      phase='active';
-      const ex=currentWorkout.exercises[idx];
-      const total=ex.duration;
-      endAt=Date.now()+total*1000; phaseLabel.textContent='In Progress';
-      speak(`Now: ${ex.name} for ${Math.round(total)} seconds`);
-
-      // Start/seek video for this exercise
-      if(ytReady && currentWorkout.videoUrl){
-        const id = extractYouTubeId(currentWorkout.videoUrl);
-        const curId = ytPlayer.getVideoData().video_id;
-        if(curId !== id){ ytPlayer.loadVideoById({videoId:id, startSeconds: ex.videoStart||0}); }
-        else { ytPlayer.seekTo(ex.videoStart||0, true); ytPlayer.playVideo(); }
+      if(window.YT && YT.Player){ ready(); }
+      else{
+        const tag=document.createElement('script'); tag.src="https://www.youtube.com/iframe_api";
+        window.onYouTubeIframeAPIReady=ready; document.head.appendChild(tag);
       }
+    });
+  }
 
-      let added=0;
-      runLoop(()=>{
-        const remain=(endAt-Date.now())/1000;
-        const progressed=Math.min(total,Math.max(0,total-remain));
-        const inc=progressed-added; if(inc>0){ elapsedOverall+=inc; added+=inc; updateOverallProgress(); }
-        const p=1-Math.max(0,Math.min(1,remain/total)); setRingProgress(p); timeBig.textContent=fmt(remain);
-        // auto-stop video when exercise ends
-        if(remain<=0){
-          if(ytReady) ytPlayer.pauseVideo();
-          beep({duration:120,frequency:900}); setTimeout(()=>beep({duration:140,frequency:700}),140); vibrate([160,60,120]);
-          timeBig.textContent='00:00'; setRingProgress(1);
-          nextExercise();
-          return true;
-        }
+  /* ============== 7) Session control ============== */
+  let currentWorkout=null, idx=0, phase='idle', endAt=0, rafId=null, paused=false, pauseRemain=0;
+  let elapsedOverall=0, totalPlanned=1;
+
+  function stopLoop(){ if(rafId){ cancelAnimationFrame(rafId); rafId=null; } }
+  function runLoop(step){ stopLoop(); const tick=()=>{ if(step()===true) return; rafId=requestAnimationFrame(tick); }; rafId=requestAnimationFrame(tick); }
+  function updateOverallProgress(){ const pct=Math.round(((idx)/(currentWorkout.exercises.length))*100); progressBar.style.width=pct+'%'; progressChip.textContent=(idx+1)+'/'+currentWorkout.exercises.length; }
+
+  function showWatch(ex){
+    // Title
+    watchTitle.textContent = ex.name;
+    // Choose player (YouTube or MP4)
+    const url=(currentWorkout.videoUrl||'').trim(); const ytMode=isYouTube(url);
+    document.getElementById('ytPlayer').style.display = ytMode? 'block':'none';
+    mp4Player.style.display = ytMode? 'none':'block';
+    if(ytMode){
+      const id=extractYouTubeId(url);
+      ensureYouTubePlayer(id).then(()=>{
+        ytPlayer.cueVideoById({videoId:id, startSeconds: ex.videoStart||0});
       });
+    }else{
+      mp4Player.src=url; // .mp4
+      const seek=()=>{ mp4Player.currentTime = ex.videoStart||0; mp4Player.pause(); };
+      if(mp4Player.readyState>=1) seek(); else mp4Player.onloadedmetadata=seek;
     }
+    watchCard.style.display='block';
+    timerCard.style.display='none';
+  }
 
-    function nextExercise(){
-      stopLoop();
-      if(idx < currentWorkout.exercises.length - 1){
-        idx++; loadCurrent(); startReady(currentWorkout.preCountdown||10);
-      } else {
-        finishWorkout();
+  function startGetReady(sec){
+    phase='ready'; phaseLabel.textContent='Get Ready';
+    endAt=Date.now()+sec*1000; setControls({pause:true,resume:true,next:true});
+    let added=0;
+    runLoop(()=>{
+      const remain=(endAt-Date.now())/1000;
+      const progressed=Math.min(sec,Math.max(0,sec-remain));
+      const inc=progressed-added; if(inc>0){ added+=inc; }
+      const p=1-Math.max(0,Math.min(1,remain/sec)); setRingProgress(p); timeBig.textContent=fmt(remain);
+      if(remain<=0){ beep({duration:160,frequency:1200,type:'triangle'}); vibrate([160]); startExerciseTimer(); return true; }
+    });
+  }
+
+  function startExerciseTimer(){
+    phase='active';
+    const ex=currentWorkout.exercises[idx];
+    const total=ex.duration;
+    currentName.textContent = ex.name;
+    phaseLabel.textContent='In Progress'; speak(`Now: ${ex.name} for ${Math.round(total)} seconds`);
+    endAt=Date.now()+total*1000;
+    let added=0;
+    runLoop(()=>{
+      const remain=(endAt-Date.now())/1000;
+      const progressed=Math.min(total,Math.max(0,total-remain));
+      const inc=progressed-added; if(inc>0){ added+=inc; }
+      const p=1-Math.max(0,Math.min(1,remain/total)); setRingProgress(p); timeBig.textContent=fmt(remain);
+      if(remain<=0){
+        beep({duration:120,frequency:900}); setTimeout(()=>beep({duration:140,frequency:700}),140); vibrate([160,60,120]);
+        nextStepAfterTimer();
+        return true;
       }
-    }
+    });
+  }
 
-    function setControls({pause=false,resume=false,next=false}){ pauseBtn.disabled=!pause; resumeBtn.disabled=!resume; nextBtn.disabled=!next; }
-    function pause(){
-      if(phase!=='ready'&&phase!=='active') return;
-      paused=true; stopLoop(); pauseRemain=Math.max(0,(endAt-Date.now())/1000); setControls({pause:false,resume:true,next:true}); phaseLabel.textContent='Paused';
-      if(ytReady) ytPlayer.pauseVideo();
+  function nextStepAfterTimer(){
+    stopLoop();
+    // move to next exercise
+    if(idx < currentWorkout.exercises.length-1){
+      idx++;
+      updateOverallProgress();
+      proceedToExercise();
+    }else{
+      // finished
+      setRingProgress(1); timeBig.textContent='00:00'; phaseLabel.textContent='Finished';
+      setControls({pause:false,resume:false,next:false});
+      alert('🎉 You’re done! Great job!');
     }
-    function resume(){
-      if(!paused) return; paused=false; const total=(phase==='ready'?(currentWorkout.preCountdown||10):currentWorkout.exercises[idx].duration); endAt=Date.now()+pauseRemain*1000; let progressedAtResume=0;
-      if(ytReady && phase==='active') ytPlayer.playVideo();
-      runLoop(()=>{
-        const remain=(endAt-Date.now())/1000;
-        const progressed=Math.min(total,Math.max(0,total-remain));
-        const inc=progressed-progressedAtResume; if(inc>0){ elapsedOverall+=inc; progressedAtResume+=inc; updateOverallProgress(); }
-        const p=1-Math.max(0,Math.min(1,remain/total)); setRingProgress(p); timeBig.textContent=fmt(remain);
-        if(remain<=0){
-          if(phase==='ready'){ beep({duration:160,frequency:1200,type:'triangle'}); vibrate([160]); startExercise(); }
-          else { if(ytReady) ytPlayer.pauseVideo(); beep({duration:120,frequency:900}); setTimeout(()=>beep({duration:140,frequency:700}),140); vibrate([160,60,120]); nextExercise(); }
-          return true;
-        }
-      });
-      phaseLabel.textContent=(phase==='ready')?'Get Ready':'In Progress'; setControls({pause:true,resume:false,next:true});
-    }
-    function resetSession(){
-      stopLoop(); idx=0; phase='idle'; elapsedOverall=0; setRingProgress(0); timeBig.textContent='00:00'; progressBar.style.width='0%'; progressChip.textContent='0%';
-      if(ytReady) ytPlayer.pauseVideo();
-      show('picker');
-    }
+  }
 
-    // ---------------- Confetti + Tracks + History ----------------
-    let confettiRAF=null;
-    function runConfetti(ms=2500){
-      const c=confettiCanvas, ctx=c.getContext('2d'); const {innerWidth:w, innerHeight:h}=window; c.width=w; c.height=h;
-      const N=150; const parts=[...Array(N)].map(()=>({x:Math.random()*w,y:-20-Math.random()*h,vx:(Math.random()-0.5)*2,vy:2+Math.random()*4,size:4+Math.random()*4,rot:Math.random()*Math.PI,vr:(Math.random()-0.5)*0.2,color:`hsl(${(Math.random()*360)|0},90%,60%)`}));
-      const t0=performance.now(); function step(t){ const dt=(t-(step.t||t))/16; step.t=t; ctx.clearRect(0,0,w,h);
-        parts.forEach(p=>{ p.x+=p.vx*dt; p.y+=p.vy*dt; p.rot+=p.vr*dt; ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot); ctx.fillStyle=p.color; ctx.fillRect(-p.size/2,-p.size/2,p.size,p.size); ctx.restore(); if(p.y>h+30) { p.y=-20; p.x=Math.random()*w; } });
-        if(t-t0<ms){ confettiRAF=requestAnimationFrame(step); } else { ctx.clearRect(0,0,w,h); } }
-      confettiRAF=requestAnimationFrame(step);
+  function proceedToExercise(){
+    const ex=currentWorkout.exercises[idx];
+    const next=currentWorkout.exercises[idx+1]; nextName.textContent=next? next.name : '—';
+    // if this exercise has a videoStart → show video phase first; else timer card directly
+    if(ex.videoStart!=null){
+      showWatch(ex);
+    }else{
+      watchCard.style.display='none';
+      timerCard.style.display='block';
+      currentName.textContent = ex.name;
+      setRingProgress(0); timeBig.textContent='00:00';
+      startGetReady(currentWorkout.preCountdown||10);
     }
-    function stopConfetti(){ if(confettiRAF) cancelAnimationFrame(confettiRAF); const ctx=confettiCanvas.getContext('2d'); ctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height); }
+  }
 
-    function addLogEntry(workout, seconds){ const log=loadLog(); log.push({date:todayISO(), workoutId:workout.id, name:workout.name, seconds}); saveLog(log); }
-    function getDatesSet(){ const log=loadLog(); const set=new Set(); log.forEach(r=>set.add(r.date)); return set; }
-    function calcStreak(){ const dates=getDatesSet(); let streak=0; const d=new Date(); for(;;){ const iso=d.toISOString().slice(0,10); if(dates.has(iso)){ streak++; d.setDate(d.getDate()-1); } else break; } return streak; }
-    function renderLogList(){ const log=loadLog().slice().reverse(); logList.innerHTML=''; if(!log.length){ logList.innerHTML='<div class="muted">No sessions yet.</div>'; return; }
-      log.slice(0,40).forEach(item=>{ const div=document.createElement('div'); div.className='exercise-item'; div.innerHTML=`<div style="font-weight:700">${item.name}</div><div class="muted" style="margin-left:auto">${item.date} &bull; ${Math.round(item.seconds/60)} min</div>`; logList.appendChild(div); });
-    }
-    let calYear=(new Date()).getFullYear(), calMonth=(new Date()).getMonth();
-    function renderCalendar(){
-      const date=new Date(calYear,calMonth,1); const firstDOW=(date.getDay()+6)%7;
-      const nextMonth=new Date(calYear,calMonth+1,0).getDate(); const datesSet=getDatesSet(); calGrid.innerHTML='';
-      const dow=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']; dow.forEach(d=>{ const s=document.createElement('div'); s.className='dow'; s.textContent=d; calGrid.appendChild(s); });
-      for(let i=0;i<firstDOW;i++){ const b=document.createElement('div'); b.className='day'; b.style.visibility='hidden'; calGrid.appendChild(b); }
-      const today=todayISO();
-      for(let d=1; d<=nextMonth; d++){
-        const cell=document.createElement('div'); cell.className='day';
-        const iso=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        if(iso===today) cell.classList.add('today'); if(datesSet.has(iso)) cell.classList.add('done');
-        cell.innerHTML=`<div>${d}</div><div class="dot"></div>`; calGrid.appendChild(cell);
+  function setControls({pause=false,resume=false,next=false}){ pauseBtn.disabled=!pause; resumeBtn.disabled=!resume; nextBtn.disabled=!next; }
+
+  function pause(){
+    if(phase!=='ready'&&phase!=='active') return;
+    paused=true; stopLoop(); pauseRemain=Math.max(0,(endAt-Date.now())/1000);
+    setControls({pause:false,resume:true,next:true}); phaseLabel.textContent='Paused';
+  }
+  function resume(){
+    if(!paused) return; paused=false;
+    const total=(phase==='ready'?(currentWorkout.preCountdown||10):currentWorkout.exercises[idx].duration);
+    endAt=Date.now()+pauseRemain*1000; let progressedAtResume=0;
+    runLoop(()=>{
+      const remain=(endAt-Date.now())/1000;
+      const progressed=Math.min(total,Math.max(0,total-remain));
+      const inc=progressed-progressedAtResume; if(inc>0){ progressedAtResume+=inc; }
+      const p=1-Math.max(0,Math.min(1,remain/total)); setRingProgress(p); timeBig.textContent=fmt(remain);
+      if(remain<=0){
+        if(phase==='ready'){ beep({duration:160,frequency:1200,type:'triangle'}); vibrate([160]); startExerciseTimer(); }
+        else { beep({duration:120,frequency:900}); setTimeout(()=>beep({duration:140,frequency:700}),140); vibrate([160,60,120]); nextStepAfterTimer(); }
+        return true;
       }
-      const monthName=date.toLocaleString(undefined,{month:'long',year:'numeric'}); monthLabel.textContent=monthName;
-      streakLabel.textContent=`Streak: ${calcStreak()} day(s)`;
-    }
+    });
+    phaseLabel.textContent=(phase==='ready')?'Get Ready':'In Progress'; setControls({pause:true,resume:false,next:true});
+  }
 
-    function finishWorkout(){
-      phase='finished'; timeBig.textContent='🏁'; setRingProgress(1); setControls({pause:false,resume:false,next:false});
-      const totalSeconds = currentWorkout.exercises.reduce((a,e)=>a+e.duration,0) + currentWorkout.exercises.length*(currentWorkout.preCountdown||10);
-      addLogEntry(currentWorkout,totalSeconds);
-      finishSubtitle.textContent = `Completed: ${currentWorkout.name}`;
-      finishTime.textContent = `Time: ${Math.round(totalSeconds/60)} min`;
-      const todayCount = loadLog().filter(r=>r.date===todayISO()).length;
-      finishToday.textContent = `Today: ${todayCount} session${todayCount>1?'s':''}`;
-      finishStreak.textContent = `Streak: ${calcStreak()} day(s)`;
-      runConfetti(2600);
-      show('finish');
-      beep({duration:260,frequency:880}); setTimeout(()=>beep({duration:300,frequency:660}),260); vibrate([200,60,200]);
-      if(ytReady) ytPlayer.pauseVideo();
-    }
+  function resetSession(){
+    stopLoop(); idx=0; phase='idle'; setRingProgress(0); timeBig.textContent='00:00'; progressBar.style.width='0%'; progressChip.textContent='0/0';
+    show('picker');
+  }
 
-    async function shareTextOrFile(title, text, filename, data){
-      try{
-        if(navigator.canShare && ('share' in navigator)){
-          const file = new File([data], filename, {type:'text/plain'});
-          if(navigator.canShare({files:[file]})){ await navigator.share({title, text, files:[file]}); return true; }
-        }
-      }catch(e){}
-      try{
-        const blob=new Blob([text+"\n\n"],{type:'text/plain'}); const url=URL.createObjectURL(blob);
-        window.open(url,'_blank'); setTimeout(()=>URL.revokeObjectURL(url), 2000); return true;
-      }catch(e){}
-      return false;
-    }
+  /* ============== 8) Events ============== */
+  enterBtn.addEventListener('click',()=>{ ensureAudio(); show('picker'); });
+  aboutBtn.addEventListener('click',()=> alert('Single-file app: watch a demo video for each exercise (optional), then do the timed set. Data is saved locally on this device.'));
 
-    // ---------------- Import/Export ----------------
-    function tryDownload(filename, mime, data){
-      try{ const blob=new Blob([data],{type:mime}); const url=URL.createObjectURL(blob);
-        const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click();
-        setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0); return true;
-      }catch(e){ return false; }
-    }
-    async function doExport(){
-      const payload = JSON.stringify(WORKOUTS,null,2);
-      try{
-        if(navigator.canShare && ('share' in navigator)){
-          const file = new File([payload], 'physio-workouts.json', {type:'application/json'});
-          if(navigator.canShare({files:[file]})){ await navigator.share({title:'Physio Workouts', text:'My workout plans', files:[file]}); return; }
-        }
-      }catch(e){}
-      if(tryDownload('physio-workouts.json','application/json', payload)) return;
-      openCopyDialog(payload);
-    }
-    function openCopyDialog(text){
-      const overlay=document.createElement('div');
-      overlay.style.position='fixed'; overlay.style.inset='0'; overlay.style.background='rgba(0,0,0,.6)';
-      overlay.style.display='grid'; overlay.style.placeItems='center'; overlay.style.zIndex='9999';
-      const card=document.createElement('div'); card.className='card'; card.style.maxWidth='720px'; card.style.width='92%';
-      card.innerHTML=`<div class="title">Export Workouts (Copy &amp; Save)</div>
-        <div class="subtitle" style="margin:6px 0 8px">Copy the JSON and save it to a file named <b>physio-workouts.json</b></div>
-        <textarea style="width:100%;height:300px;border-radius:10px;border:1px solid rgba(255,255,255,.12);padding:10px;background:#0b1227;color:var(--text)">${text}</textarea>
-        <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
-          <button id="copyBtn" class="primary" type="button">Copy</button>
-          <button id="closeCopy" class="ghost" type="button">Close</button>
-        </div>`;
-      overlay.appendChild(card); document.body.appendChild(overlay);
-      card.querySelector('#copyBtn').addEventListener('click',async()=>{
-        try{ await navigator.clipboard.writeText(text); card.querySelector('#copyBtn').textContent='Copied ✓'; }catch(e){ alert('Copy failed — select all & copy manually.'); }
-      });
-      overlay.addEventListener('click',(e)=>{ if(e.target===overlay) document.body.removeChild(overlay); });
-      card.querySelector('#closeCopy').addEventListener('click',()=> document.body.removeChild(overlay));
-    }
+  function populate(){
+    workoutSelect.innerHTML='';
+    WORKOUTS.forEach(w=>{ const o=document.createElement('option'); o.value=w.id; o.textContent=w.name; workoutSelect.appendChild(o); });
+  }
 
-    // ---------------- Editor ----------------
-    let editingIndex=-1;
-    const edTitle=document.getElementById('edTitle');
-    const edId=document.getElementById('edId');
-    const edPre=document.getElementById('edPre');
-    const edVideoUrl=document.getElementById('edVideoUrl');
-    const edList=document.getElementById('edList');
+  workoutSelect.addEventListener('change', renderWorkoutMeta);
+  preCountdownInput.addEventListener('change',()=>{ const w=WORKOUTS.find(x=>x.id===workoutSelect.value); if(w){ w.preCountdown=parseInt(preCountdownInput.value||'10',10); saveStore(WORKOUTS); renderWorkoutMeta(); }});
+  voiceToggle.addEventListener('change',()=>{ const p=loadPrefs(); p.voice=!!voiceToggle.checked; savePrefs(p); });
+  workoutVideoUrl.addEventListener('change',()=>{ const w=WORKOUTS.find(x=>x.id===workoutSelect.value); if(w){ w.videoUrl=workoutVideoUrl.value.trim(); saveStore(WORKOUTS);} });
 
-    function openEditor(index){
-      editingIndex=index;
-      const w = index>=0? WORKOUTS[index] : { id:'', name:'', preCountdown:10, videoUrl:'', exercises:[] };
-      edTitle.value=w.name||''; edId.value=w.id||''; edPre.value=w.preCountdown??10; edVideoUrl.value=w.videoUrl||'';
-      edList.innerHTML='';
-      w.exercises.forEach(ex=> addExerciseRow(ex.name, ex.duration, ex.videoStart||0));
-      show('editor');
-    }
-    function addExerciseRow(name='', duration=30, videoStart=0){
-      const row=document.createElement('div'); row.className='exercise-item'; row.style.alignItems='stretch';
-      row.innerHTML=`<div style="display:grid;grid-template-columns:1fr 200px 160px;gap:10px;align-items:center;width:100%">
-        <input class="exName" placeholder="Exercise name" value="${name}" style="width:100%;border-radius:10px;border:1px solid rgba(255,255,255,.12);padding:8px;background:#0b1227;color:var(--text)"/>
-        <label class="pill">Start (s) <input class="exStart" type="number" min="0" value="${videoStart}" style="margin-left:6px;width:80px;background:transparent;color:var(--text);border:none"/></label>
-        <label class="pill">Duration <input class="exDur" type="number" min="1" value="${duration}" style="margin-left:6px;width:72px;background:transparent;color:var(--text);border:none"/>s</label>
-        <button class="ghost remove" type="button" style="justify-self:end">Remove</button>
+  startBtn.addEventListener('click',()=>{
+    const w=WORKOUTS.find(x=>x.id===workoutSelect.value); if(!w) return;
+    currentWorkout = JSON.parse(JSON.stringify(w));
+    currentWorkoutTitle.textContent=currentWorkout.name;
+    idx=0; elapsedOverall=0; totalPlanned=currentWorkout.exercises.reduce((a,e)=>a+e.duration,0)+currentWorkout.exercises.length*(currentWorkout.preCountdown||10);
+    progressChip.textContent='1/'+currentWorkout.exercises.length; progressBar.style.width='0%';
+    updateOverallProgress();
+    requestWakeLock();
+    show('player');
+    proceedToExercise();
+  });
+
+  // Watch → Next → Timer
+  watchNextBtn.addEventListener('click', ()=>{
+    // Pause any playing video (YouTube or mp4)
+    const url=(currentWorkout.videoUrl||'').trim();
+    if(isYouTube(url) && ytReady){ try{ ytPlayer.pauseVideo(); }catch(e){} } else { try{ mp4Player.pause(); }catch(e){} }
+    watchCard.style.display='none';
+    timerCard.style.display='block';
+    const ex=currentWorkout.exercises[idx];
+    currentName.textContent = ex.name;
+    setRingProgress(0); timeBig.textContent='00:00';
+    startGetReady(currentWorkout.preCountdown||10);
+  });
+
+  // Timer controls
+  pauseBtn.addEventListener('click', pause);
+  resumeBtn.addEventListener('click', resume);
+  nextBtn.addEventListener('click',()=>{ if(phase==='ready'||phase==='active'){ nextStepAfterTimer(); }});
+  resetBtn.addEventListener('click', resetSession);
+  backToPicker.addEventListener('click', resetSession);
+
+  // Import / Export
+  function tryDownload(filename, mime, data){
+    try{ const blob=new Blob([data],{type:mime}); const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+      setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },0); return true;
+    }catch(e){ return false; }
+  }
+  function openCopyDialog(text){
+    const overlay=document.createElement('div'); overlay.style.position='fixed'; overlay.style.inset='0'; overlay.style.background='rgba(0,0,0,.6)'; overlay.style.display='grid'; overlay.style.placeItems='center'; overlay.style.zIndex='9999';
+    const card=document.createElement('div'); card.className='card'; card.style.maxWidth='720px'; card.style.width='92%';
+    card.innerHTML=`<div class="title">Export Workouts (Copy &amp; Save)</div>
+      <div class="subtitle" style="margin:6px 0 8px">Copy the JSON and save as <b>physio-workouts.json</b></div>
+      <textarea style="width:100%;height:300px;border-radius:10px;border:1px solid rgba(255,255,255,.12);padding:10px;background:#0b1227;color:var(--text)">${text}</textarea>
+      <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+        <button id="copyBtn" class="primary" type="button">Copy</button>
+        <button id="closeCopy" class="ghost" type="button">Close</button>
       </div>`;
-      row.querySelector('.remove').addEventListener('click',()=> row.remove());
-      edList.appendChild(row);
-    }
+    overlay.appendChild(card); document.body.appendChild(overlay);
+    card.querySelector('#copyBtn').addEventListener('click',async()=>{ try{ await navigator.clipboard.writeText(text); card.querySelector('#copyBtn').textContent='Copied ✓'; }catch(e){ alert('Copy failed — select all & copy manually.'); }});
+    overlay.addEventListener('click',(e)=>{ if(e.target===overlay) document.body.removeChild(overlay); });
+    card.querySelector('#closeCopy').addEventListener('click',()=> document.body.removeChild(overlay));
+  }
 
-    // ---------------- Events ----------------
-    enterBtn.addEventListener('click',()=>{ ensureAudio(); show('picker'); });
-    aboutBtn.addEventListener('click',()=>{ alert('Physio Workout — video timestamps mode. Create, edit and run workouts tied to a single YouTube video. Data saves locally.'); });
+  exportBtn.addEventListener('click',()=>{
+    const payload=JSON.stringify(WORKOUTS,null,2);
+    if(tryDownload('physio-workouts.json','application/json',payload)) return;
+    openCopyDialog(payload);
+  });
+  importBtn.addEventListener('click',()=>importFile.click());
+  importFile.addEventListener('change', async (e)=>{
+    const file=e.target.files?.[0]; if(!file) return; const text=await file.text();
+    try{ const data=JSON.parse(text); if(Array.isArray(data)){ WORKOUTS=data; saveStore(WORKOUTS); populateSelect(); workoutSelect.value=WORKOUTS[0]?.id||''; renderWorkoutMeta(); alert('Imported ✓'); } else { alert('Invalid file'); } }
+    catch(err){ alert('Failed to parse JSON'); }
+  });
 
-    workoutSelect.addEventListener('change', renderWorkoutMeta);
-    preCountdownInput.addEventListener('change',()=>{ const w=WORKOUTS.find(x=>x.id===workoutSelect.value); if(w){ w.preCountdown=parseInt(preCountdownInput.value||'10',10); saveStore(WORKOUTS); renderWorkoutMeta(); }});
-    voiceToggle.addEventListener('change',()=>{ const p=loadPrefs(); p.voice=!!voiceToggle.checked; savePrefs(p); });
-    workoutVideoUrl.addEventListener('change',()=>{ const w=WORKOUTS.find(x=>x.id===workoutSelect.value); if(w){ w.videoUrl=workoutVideoUrl.value.trim(); saveStore(WORKOUTS);} });
+  // Editor
+  let editingIndex=-1;
+  const edTitle=document.getElementById('edTitle'); const edId=document.getElementById('edId'); const edPre=document.getElementById('edPre'); const edVideoUrl=document.getElementById('edVideoUrl'); const edList=document.getElementById('edList');
+  function openEditor(index){
+    editingIndex=index;
+    const w=index>=0? WORKOUTS[index] : {id:'',name:'',preCountdown:10,videoUrl:'',exercises:[]};
+    edTitle.value=w.name||''; edId.value=w.id||''; edPre.value=w.preCountdown??10; edVideoUrl.value=w.videoUrl||''; edList.innerHTML='';
+    w.exercises.forEach(ex=> addExerciseRow(ex.name, ex.duration, ex.videoStart));
+    show('editor');
+  }
+  function addExerciseRow(name='', duration=30, videoStart=''){
+    const row=document.createElement('div'); row.className='exercise-item'; row.style.alignItems='stretch';
+    row.innerHTML=`<div style="display:grid;grid-template-columns:1fr 160px 140px auto;gap:10px;align-items:center;width:100%">
+      <input class="exName" placeholder="Exercise name" value="${name}" style="width:100%;border-radius:10px;border:1px solid rgba(255,255,255,.12);padding:8px;background:#0b1227;color:var(--text)"/>
+      <label class="pill">Start (s) <input class="exStart" type="number" min="0" value="${videoStart==null?'':videoStart}" style="margin-left:6px;width:72px;background:transparent;color:var(--text);border:none"/></label>
+      <label class="pill">Duration <input class="exDur" type="number" min="1" value="${duration}" style="margin-left:6px;width:72px;background:transparent;color:var(--text);border:none"/>s</label>
+      <button class="ghost remove" type="button">Remove</button>
+    </div>`;
+    row.querySelector('.remove').addEventListener('click',()=> row.remove());
+    edList.appendChild(row);
+  }
 
-    startBtn.addEventListener('click',()=>{
-      const w=WORKOUTS.find(x=>x.id===workoutSelect.value); if(!w) return;
-      currentWorkout = JSON.parse(JSON.stringify(w));
-      currentWorkoutTitle.textContent=currentWorkout.name;
-      idx=0; elapsedOverall=0; totalPlanned=currentWorkout.exercises.reduce((a,e)=>a+e.duration,0) + currentWorkout.exercises.length*(currentWorkout.preCountdown||10);
-      setRingProgress(0); timeBig.textContent='00:00'; updateOverallProgress();
-      // load video to player
-      if(ytReady && currentWorkout.videoUrl){
-        const id = extractYouTubeId(currentWorkout.videoUrl);
-        ytPlayer.cueVideoById({videoId:id, startSeconds: currentWorkout.exercises[0]?.videoStart||0});
-      }
-      requestWakeLock(); loadCurrent(); setControls({pause:true,resume:false,next:true}); show('player'); startReady(currentWorkout.preCountdown||10);
+  document.getElementById('addExBtn').addEventListener('click',()=> addExerciseRow());
+  document.getElementById('saveEdBtn').addEventListener('click',()=>{
+    const name=edTitle.value.trim(); const id=edId.value.trim()||name.toLowerCase().replace(/[^a-z0-9]+/g,'-'); const pre=parseInt(edPre.value||'10',10);
+    const videoUrl=edVideoUrl.value.trim();
+    const ex=[]; edList.querySelectorAll('.exercise-item').forEach(row=>{
+      const n=row.querySelector('.exName').value.trim();
+      const d=parseInt(row.querySelector('.exDur').value||'30',10);
+      const s=row.querySelector('.exStart').value.trim();
+      const start = s==='' ? null : Math.max(0, parseFloat(s));
+      if(n && d>0) ex.push({name:n,duration:d, ...(start==null?{}:{videoStart:start}) });
     });
+    const payload={id,name,preCountdown:pre,videoUrl,exercises:ex};
+    if(editingIndex>=0) WORKOUTS[editingIndex]=payload; else WORKOUTS.push(payload);
+    saveStore(WORKOUTS); populateSelect(); workoutSelect.value=id; renderWorkoutMeta(); show('picker'); alert('Workout saved ✓');
+  });
+  document.getElementById('cancelEdBtn').addEventListener('click',()=> show('picker'));
 
-    editBtn.addEventListener('click',()=>{ const i=WORKOUTS.findIndex(x=>x.id===workoutSelect.value); if(i>=0) openEditor(i); else alert('Select a workout first'); });
-    newBtn.addEventListener('click',()=> openEditor(-1));
-    exportBtn.addEventListener('click', doExport);
-    importBtn.addEventListener('click',()=>importFile.click());
-    importFile.addEventListener('change', async (e)=>{
-      const file=e.target.files?.[0]; if(!file) return; const text=await file.text();
-      try{
-        const data=JSON.parse(text);
-        if(Array.isArray(data)){
-          WORKOUTS=data; saveStore(WORKOUTS); populateSelect(); workoutSelect.value=WORKOUTS[0]?.id||''; renderWorkoutMeta(); alert('Imported ✓');
-        } else { alert('Invalid file format'); }
-      }catch(err){ alert('Failed to parse JSON'); }
-    });
-    historyBtn.addEventListener('click',()=>{ renderCalendar(); renderLogList(); show('history'); });
+  editBtn.addEventListener('click',()=>{ const i=WORKOUTS.findIndex(x=>x.id===workoutSelect.value); if(i>=0) openEditor(i); else alert('Select a workout first'); });
+  newBtn.addEventListener('click',()=> openEditor(-1));
 
-    const pauseBtnEl = document.getElementById('pauseBtn');
-    pauseBtn.addEventListener('click', pause);
-    resumeBtn.addEventListener('click', resume);
-    nextBtn.addEventListener('click',()=>{ if(phase==='ready'||phase==='active'){ nextExercise(); }});
-    resetBtn.addEventListener('click', resetSession);
-    backToPicker.addEventListener('click', resetSession);
+  /* ============== 9) Init ============== */
+  function init(){
+    populate(); workoutSelect.value=WORKOUTS[0]?.id||''; renderWorkoutMeta();
+    document.addEventListener('pointerdown',()=>ensureAudio(),{once:true});
+    show('splash');
+  }
+  init();
 
-    // History
-    backFromHistory.addEventListener('click',()=> show('picker'));
-    prevMonthBtn.addEventListener('click',()=>{ calMonth--; if(calMonth<0){ calMonth=11; calYear--; } renderCalendar(); });
-    nextMonthBtn.addEventListener('click',()=>{ calMonth++; if(calMonth>11){ calMonth=0; calYear++; } renderCalendar(); });
+  // wake lock follow-ups
+  wakelockToggle?.addEventListener('change',()=>{ if(wakelockToggle.checked) requestWakeLock(); else {try{wakeLock.release();}catch{}} });
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && wakelockToggle.checked) requestWakeLock(); });
 
-    // Editor actions
-    document.getElementById('addExBtn').addEventListener('click',()=> addExerciseRow());
-    document.getElementById('saveEdBtn').addEventListener('click',()=>{
-      const name=edTitle.value.trim(); const id=edId.value.trim()||name.toLowerCase().replace(/[^a-z0-9]+/g,'-'); const pre=parseInt(edPre.value||'10',10);
-      const videoUrl=edVideoUrl.value.trim();
-      const ex=[]; edList.querySelectorAll('.exercise-item').forEach(row=>{
-        const n=row.querySelector('.exName').value.trim();
-        const d=parseInt(row.querySelector('.exDur').value||'30',10);
-        const s=parseFloat(row.querySelector('.exStart').value||'0');
-        if(n && d>0) ex.push({name:n,duration:d,videoStart:Math.max(0,s)});
-      });
-      const payload={id,name,preCountdown:pre,videoUrl,exercises:ex};
-      if(editingIndex>=0) WORKOUTS[editingIndex]=payload; else WORKOUTS.push(payload);
-      saveStore(WORKOUTS); populateSelect(); workoutSelect.value=id; renderWorkoutMeta(); show('picker'); alert('Workout saved ✓');
-    });
-    document.getElementById('cancelEdBtn').addEventListener('click',()=> show('picker'));
-
-    // Finish screen buttons
-    finishBackBtn.addEventListener('click',()=>{ stopConfetti(); show('picker'); });
-    finishHistoryBtn.addEventListener('click',()=>{ stopConfetti(); renderCalendar(); renderLogList(); show('history'); });
-    finishShareBtn.addEventListener('click',async()=>{
-      const streak=calcStreak(); const text=`I just completed "${currentWorkout?.name||'a workout'}"! 💪 Streak: ${streak} day(s).`;
-      await shareTextOrFile('Workout Completed', text, 'workout.txt', text);
-    });
-
-    // ---------------- Init ----------------
-    function renderCalendarHeader(){ calGrid.innerHTML=''; const dow=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']; dow.forEach(d=>{ const s=document.createElement('div'); s.className='dow'; s.textContent=d; calGrid.appendChild(s); }); }
-    function renderWorkoutOptions(){ populateSelect(); workoutSelect.value=WORKOUTS[0]?.id||''; renderWorkoutMeta(); }
-    function init(){
-      renderWorkoutOptions();
-      renderCalendarHeader();
-      document.addEventListener('pointerdown',()=>ensureAudio(),{once:true});
-      show('splash');
-    }
-    init();
-  </script>
-
-  <!-- Load YouTube IFrame API (controls seeking/playing the timestamps) -->
-  <script src="https://www.youtube.com/iframe_api"></script>
-
-  <!-- Lightweight service worker for offline/install -->
-  <script>
-  (function registerSW(){
-    const swCode = `
-      const CACHE = 'physio-video-v1';
-      self.addEventListener('install', (e) => {
-        e.waitUntil((async () => {
-          const cache = await caches.open(CACHE);
-          await cache.addAll([self.registration.scope, self.location.href]);
-        })());
-        self.skipWaiting();
-      });
-      self.addEventListener('activate', (e)=>{ e.waitUntil(self.clients.claim()); });
-      self.addEventListener('fetch', (e) => {
-        const req = e.request;
-        if (new URL(req.url).origin === location.origin) {
-          e.respondWith((async ()=>{
-            const cache = await caches.open(CACHE);
-            const hit = await cache.match(req);
-            if (hit) return hit;
-            try {
-              const res = await fetch(req);
-              if (req.method === 'GET' && (req.mode === 'navigate' || req.destination === 'document')) {
-                cache.put(req, res.clone());
-              }
-              return res;
-            } catch (err) {
-              const fallback = await cache.match(self.registration.scope);
-              return fallback || new Response('Offline', {status: 503});
-            }
-          })());
-        }
-      });
-    `.trim();
-    if ('serviceWorker' in navigator) {
-      const swBlob = new Blob([swCode], {type: 'text/javascript'});
-      const swUrl = URL.createObjectURL(swBlob);
-      navigator.serviceWorker.register(swUrl, {scope: new URL('./', location.href).toString()}).catch(()=>{});
-    }
-  })();
   </script>
 </body>
 </html>
